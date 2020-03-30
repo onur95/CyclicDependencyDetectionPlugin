@@ -1,11 +1,10 @@
 <idea-plugin>
     <id>org.aau.CyclicDependencyDetectionPlugin</id>
-    <name>Plugin display name here</name>
-    <vendor email="support@yourcompany.com" url="http://www.yourcompany.com">YourCompany</vendor>
+    <name>Cyclic Dependency Detection</name>
+    <vendor email="onuryi@edu.aau.at" url="https://www.aau.at/">AAU Klagenfurt</vendor>
 
     <description><![CDATA[
-    Enter short description for your plugin here.<br>
-    <em>most HTML tags may be used</em>
+    Plugin for the detection of cyclic dependencies in Java classes.
     ]]></description>
 
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
@@ -17,6 +16,13 @@
     </extensions>
 
     <actions>
+
         <!-- Add your actions here -->
+        <group id="org.aau.CyclicDependencyDetectionPlugin.GroupedActions" text="Cyclic Dependency Detection" popup="true" icon="/icons/cycle.png">
+            <add-to-group group-id="ToolsMenu" anchor="first"/>
+            <action id="ShowMessage" class="ShowMessage" text="Show Message"
+                    description="Print &quot;Hello World&quot; Message" icon="/icons/cycle.png">
+            </action>
+        </group>
     </actions>
 </idea-plugin>
