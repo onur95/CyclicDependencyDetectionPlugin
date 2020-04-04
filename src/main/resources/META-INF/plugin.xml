@@ -12,7 +12,7 @@
     <depends>com.intellij.modules.platform</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Add your extensions here -->
+        <!-- Add your extensions here -->>
     </extensions>
 
     <actions>
@@ -22,10 +22,10 @@
                popup="true" icon="/icons/cycle.png">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
             <action id="ShowMessage" class="ShowMessage" text="Show Message"
-                    description="Print &quot;Hello World&quot; Message" icon="/icons/cycle.png">
+                    description="Print &quot;hello world&quot; message" icon="/icons/cycle.png">
             </action>
             <action id="GetSourceCode" class="GetSourceCode" text="Get Source Code"
-                    description="Get Sourcecode of Project" icon="/icons/cycle.png">
+                    description="Get sourcecode of project" icon="/icons/cycle.png">
             </action>
         </group>
     </actions>

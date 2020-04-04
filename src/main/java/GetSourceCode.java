@@ -1,16 +1,19 @@
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.editor.actionSystem.TypedAction;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.ContentIterator;
-import com.intellij.openapi.roots.ProjectFileIndex;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiJavaFile;
-import com.intellij.psi.PsiManager;
 import org.jetbrains.annotations.NotNull;
 
 public class GetSourceCode extends AnAction {
+
+    /*
+     * the GetSourceCode class is convenient because as an action it gets instantiated at application startup.
+     * On instantiation, the static block of code in GetSourceCode gets evaluated.
+     * */
+    static {
+        final TypedAction typedAction = TypedAction.getInstance();
+        typedAction.setupRawHandler(new TypedHandler(typedAction.getRawHandler()));
+    }
 
     @Override
     public void update(AnActionEvent e) {
@@ -23,24 +26,5 @@ public class GetSourceCode extends AnAction {
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
         // Using the event, implement an action. For example, create and show a dialog.
-        Project project = e.getProject();
-        ProjectFileIndex.SERVICE.getInstance(project).iterateContent(new ContentIterator() {
-            @Override
-            public boolean processFile(@NotNull VirtualFile fileOrDir) {
-                PsiFile sourceFile = PsiManager.getInstance(project).findFile(fileOrDir);
-                if (sourceFile instanceof PsiJavaFile) {
-                    PsiClass[] classes = ((PsiJavaFile) sourceFile).getClasses();
-                    if (classes.length < 0) {
-                        System.out.println("No classes");
-                    } else {
-                        for (PsiClass sc : classes) {
-                            System.out.println(sc.getText());
-                        }
-                    }
-                }
-                return true;
-            }
-        });
-
     }
 }
