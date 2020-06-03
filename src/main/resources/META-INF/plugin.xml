@@ -17,16 +17,6 @@
         <!-- <fileDocumentManagerListener implementation="MyDocumentManagerListener"/> -->
     </extensions>
 
-    <applicationListeners>
-        <listener class="VfsChangeListener" topic="com.intellij.openapi.editor.event.BulkAwareDocumentListener$Simple"/>
-    </applicationListeners>
-
-    <applicationListeners>
-        <listener class="MyDocumentManagerListener"
-                  topic="com.intellij.openapi.fileEditor.FileDocumentManagerListener"/>
-    </applicationListeners>
-
-
     <actions>
 
         <!-- Add your actions here -->
