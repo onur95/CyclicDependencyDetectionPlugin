@@ -48,7 +48,11 @@ public class GetSourceCode extends AnAction {
         // Using the event, evaluate the context, and enable or disable the action.
         // Set the availability based on whether a project is open
         Project project = e.getProject();
-        e.getPresentation().setEnabledAndVisible(project != null && !ErrorHelper.errorHelperInstance.getHasErrors());
+        e.getPresentation().setEnabledAndVisible(project != null);
+        if (ErrorHelper.errorHelperInstance.getHasErrors()) {
+            e.getPresentation().setEnabled(false);
+            myNotifierClass.notify(e.getProject(), "Error in the Source-Code!");
+        }
         if (count == 0) {
             iterateProjectContent(project, true);
         }
@@ -59,13 +63,15 @@ public class GetSourceCode extends AnAction {
     public void actionPerformed(@NotNull AnActionEvent e) {
         // Using the event, implement an action. For example, create and show a dialog.
         iterateProjectContent(e.getProject(), false);
-        if (cachedValues.equals(newValues)) {
+        /*if (cachedValues.equals(newValues)) {
             myNotifierClass.notify(e.getProject(), "Nothing has changed in the Source-Code");
         } else {
             printOut(cachedValues);
             printOut(newValues);
 
-        }
+        }*/
+        printOut(cachedValues);
+        printOut(newValues);
         cloneList(cachedValues, newValues);
     }
 

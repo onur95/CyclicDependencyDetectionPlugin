@@ -23,9 +23,9 @@
         <group id="org.aau.CyclicDependencyDetectionPlugin.GroupedActions" text="Cyclic Dependency Detection"
                popup="true" icon="/icons/cycle.png">
             <add-to-group group-id="ToolsMenu" anchor="first"/>
-            <action id="ShowMessage" class="ShowMessage" text="Show Message"
+        <!--    <action id="ShowMessage" class="ShowMessage" text="Show Message"
                     description="Print &quot;hello world&quot; message" icon="/icons/cycle.png">
-            </action>
+            </action> -->
             <action id="GetSourceCode" class="GetSourceCode" text="Get Source Code"
                     description="Get sourcecode of project" icon="/icons/cycle.png">
             </action>
