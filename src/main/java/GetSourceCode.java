@@ -1,7 +1,6 @@
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
-import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.markup.*;
 import com.intellij.openapi.project.Project;
@@ -33,11 +32,10 @@ public class GetSourceCode extends AnAction {
         }
     }
 
-    private final ArrayList<String> cachedValues = new ArrayList<>();
-    private final ArrayList<String> newValues = new ArrayList<>();
+    private final ArrayList<String> sourceCode = new ArrayList<>();
     private final HashSet<RangeHighlighter> myHighlighters = new HashSet<>();
     MyNotifierClass myNotifierClass = new MyNotifierClass();
-    private int count = 0;
+
 
     public static Project getActiveProject() {
         Project[] projects = ProjectManager.getInstance().getOpenProjects();
@@ -61,42 +59,33 @@ public class GetSourceCode extends AnAction {
             e.getPresentation().setEnabled(false);
             myNotifierClass.notify(e.getProject(), "Error in the Source-Code!");
         }
-        if (count == 0) {
-            iterateProjectContent(project, true);
-        }
-        count++;
         removeHighlighters(e.getData(CommonDataKeys.EDITOR));
+        sourceCode.clear();
     }
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
         // Using the event, implement an action. For example, create and show a dialog.
-        iterateProjectContent(e.getProject(), false);
-        /*if (cachedValues.equals(newValues)) {
-            myNotifierClass.notify(e.getProject(), "Nothing has changed in the Source-Code");
+        iterateProjectContent(e.getProject());
+        Editor editor = e.getData(CommonDataKeys.EDITOR);
+        if (!sourceCode.isEmpty()) {
+            printOut(sourceCode);
         } else {
-            printOut(cachedValues);
-            printOut(newValues);
-
-        }*/
-        printOut(cachedValues);
-        printOut(newValues);
-        cloneList(cachedValues, newValues);
-        //highlightTextRange(e.getData(CommonDataKeys.EDITOR));
-        highlightLine(e.getData(CommonDataKeys.EDITOR));
+            myNotifierClass.notify(e.getProject(), "No Source-Code to print out!");
+        }
+        if (editor != null) {
+            highlightTextRange(editor, 154, 165);
+        }
+        //highlightLine(e.getData(CommonDataKeys.EDITOR));
     }
 
-    private void iterateProjectContent(Project project, boolean isOld) {
+    private void iterateProjectContent(Project project) {
         ProjectFileIndex.SERVICE.getInstance(project).iterateContent(fileOrDir -> {
             PsiFile sourceFile = PsiManager.getInstance(project).findFile(fileOrDir);
             if (sourceFile instanceof PsiJavaFile) {
                 PsiClass[] classes = ((PsiJavaFile) sourceFile).getClasses();
                 for (PsiClass sc : classes) {
-                    if (isOld) {
-                        cachedValues.add(sc.getText());
-                    } else {
-                        newValues.add(sc.getText());
-                    }
+                    sourceCode.add(sc.getText());
                 }
 
             }
@@ -108,16 +97,11 @@ public class GetSourceCode extends AnAction {
         myList.forEach(System.out::println);
     }
 
-    private void cloneList(ArrayList<String> oldList, ArrayList<String> newList) {
-        oldList.clear();
-        oldList.addAll(newList);
-        newList.clear();
-    }
 
-    private void highlightTextRange(Editor editor) {
-        Document doc = editor.getDocument();
-        int startOffset = doc.getLineStartOffset(4);
-        int endOffset = doc.getLineEndOffset(7); // assuming open line range [4-8)
+    private void highlightTextRange(Editor editor, int startOffset, int endOffset) {
+        /*Document doc = editor.getDocument();
+        int startOffset = doc.getLineStartOffset(7);
+        int endOffset = doc.getLineEndOffset(7); // assuming open line range [4-8)*/
         RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffset, endOffset, 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.EXACT_RANGE);
         highlighter.setErrorStripeMarkColor(JBColor.RED);
         highlighter.setErrorStripeTooltip("Dependency Detection Tool: Dependency detected");
