@@ -34,8 +34,8 @@ public class GetSourceCode extends AnAction {
 
     private final ArrayList<String> sourceCode = new ArrayList<>();
     private final HashSet<RangeHighlighter> myHighlighters = new HashSet<>();
-    MyNotifierClass myNotifierClass = new MyNotifierClass();
-
+    private final MyNotifierClass myNotifierClass = new MyNotifierClass();
+    private final ClassificationHelper classificationHelper = new ClassificationHelper();
 
     public static Project getActiveProject() {
         Project[] projects = ProjectManager.getInstance().getOpenProjects();
@@ -69,7 +69,12 @@ public class GetSourceCode extends AnAction {
         iterateProjectContent(e.getProject());
         Editor editor = e.getData(CommonDataKeys.EDITOR);
         if (!sourceCode.isEmpty()) {
-            printOut(sourceCode);
+            //printOut(sourceCode);
+            try {
+                classificationHelper.extractDependencies(sourceCode);
+            } catch (Exception exception) {
+                exception.printStackTrace();
+            }
         } else {
             myNotifierClass.notify(e.getProject(), "No Source-Code to print out!");
         }
