@@ -1,3 +1,5 @@
+import at.aau.softwaredynamics.classifier.util.LineNumberRange;
+import at.aau.softwaredynamics.dependency.NodeDependency;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
@@ -17,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Vector;
 
 
 public class GetSourceCode extends AnAction {
@@ -55,31 +58,33 @@ public class GetSourceCode extends AnAction {
         // Set the availability based on whether a project is open
         Project project = e.getProject();
         e.getPresentation().setEnabledAndVisible(project != null);
+        Editor editor = e.getData(CommonDataKeys.EDITOR);
         if (ErrorHelper.errorHelperInstance.getHasErrors()) {
             e.getPresentation().setEnabled(false);
             myNotifierClass.notify(e.getProject(), "Error in the Source-Code!");
         }
-        removeHighlighters(e.getData(CommonDataKeys.EDITOR));
+        if (editor != null) {
+            removeHighlighters(editor);
+        }
         sourceCode.clear();
+        classificationHelper.clearAndInitializeGraph();
     }
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
         // Using the event, implement an action. For example, create and show a dialog.
         iterateProjectContent(e.getProject());
+        //System.out.println(classificationHelper.getGraph().toString());
         Editor editor = e.getData(CommonDataKeys.EDITOR);
-        if (!sourceCode.isEmpty()) {
-            //printOut(sourceCode);
-            try {
-                classificationHelper.extractDependencies(sourceCode);
-            } catch (Exception exception) {
-                exception.printStackTrace();
-            }
-        } else {
-            myNotifierClass.notify(e.getProject(), "No Source-Code to print out!");
+        Vector<LineNumberRange> ranges = classificationHelper.checkForCycles(classificationHelper.getGraph());
+        if (sourceCode.isEmpty()) {
+            myNotifierClass.notify(e.getProject(), "No Source-Code to check!");
         }
         if (editor != null) {
-            highlightTextRange(editor, 154, 165);
+            for (LineNumberRange range : ranges) {
+                System.out.println(range.getStartOffset() + " " + range.getEndOffset());
+                highlightTextRange(editor, range.getStartOffset(), range.getEndOffset());
+            }
         }
         //highlightLine(e.getData(CommonDataKeys.EDITOR));
     }
@@ -91,6 +96,23 @@ public class GetSourceCode extends AnAction {
                 PsiClass[] classes = ((PsiJavaFile) sourceFile).getClasses();
                 for (PsiClass sc : classes) {
                     sourceCode.add(sc.getText());
+                    //Add graph vertices if there are dependencies
+                    try {
+                        if (classificationHelper.getDepCount(sc.getText()) != 0) {
+                            classificationHelper.getGraph().addVertex(sc.getQualifiedName());
+                            for (NodeDependency nodeDependency : classificationHelper.getNodeDependency(sc.getText())) {
+                                if (!nodeDependency.getDependency().getDependentOnClass().contains("java") && !nodeDependency.getDependency().getSelfDependency()) {
+                                    if (!classificationHelper.getGraph().containsVertex(nodeDependency.getDependency().getDependentOnClass())) {
+                                        classificationHelper.getGraph().addVertex(nodeDependency.getDependency().getDependentOnClass());
+                                    }
+                                    classificationHelper.getGraph().addEdge(sc.getQualifiedName(), nodeDependency.getDependency().getDependentOnClass(), new NodeDependencyEdge(nodeDependency));
+                                }
+                            }
+
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
 
             }
