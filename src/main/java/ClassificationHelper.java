@@ -1,5 +1,4 @@
 import at.aau.softwaredynamics.classifier.JChangeClassifier;
-import at.aau.softwaredynamics.classifier.util.LineNumberRange;
 import at.aau.softwaredynamics.dependency.DependencyChanges;
 import at.aau.softwaredynamics.dependency.DependencyExtractor;
 import at.aau.softwaredynamics.dependency.NodeDependency;
@@ -54,8 +53,8 @@ public class ClassificationHelper {
         this.g = new DirectedPseudograph<String, NodeDependencyEdge>(NodeDependencyEdge.class);
     }
 
-    public Vector<LineNumberRange> checkForCycles(Graph<String, NodeDependencyEdge> g) {
-        Vector<LineNumberRange> lineNumberRanges = new Vector<LineNumberRange>();
+    public Vector<NodeDependency> checkForCycles(Graph<String, NodeDependencyEdge> g) {
+        Vector<NodeDependency> nodeDependencies = new Vector<NodeDependency>();
         // Checking for cycles in the dependencies
         cycleDetector = new CycleDetector<String, NodeDependencyEdge>(g);
         // Cycle(s) detected.
@@ -66,14 +65,14 @@ public class ClassificationHelper {
 
             String cycle;
 
-            //System.out.println("Cycles detected.");
+            System.out.println("Cycles detected.");
 
             // Get all vertices involved in cycles.
             cycleVertices = cycleDetector.findCycles();
 
             // Loop through vertices trying to find disjoint cycles.
             while (!cycleVertices.isEmpty()) {
-                //System.out.println("Cycle:");
+                System.out.println("Cycle:");
 
                 // Get a vertex involved in a cycle.
                 iterator = cycleVertices.iterator();
@@ -82,17 +81,18 @@ public class ClassificationHelper {
                 // Get all vertices involved with this vertex.
                 subCycle = cycleDetector.findCyclesContainingVertex(cycle);
                 for (String sub : subCycle) {
-                    //System.out.println("   " + sub);
+                    System.out.println("   " + sub);
                     Set<NodeDependencyEdge> edges = g.getAllEdges(cycle, sub);
                     for (NodeDependencyEdge ed : edges) {
-                        lineNumberRanges.add(ed.getNodeDependency().getLineNumbers());
+                        nodeDependencies.add(ed.getNodeDependency());
+                        System.out.println(ed.getNodeDependency().toString());
                     }
                     // Remove vertex so that this cycle is not encountered again
                     cycleVertices.remove(sub);
                 }
             }
         }
-        return lineNumberRanges;
+        return nodeDependencies;
     }
 
 }

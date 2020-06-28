@@ -1,10 +1,12 @@
-import at.aau.softwaredynamics.classifier.util.LineNumberRange;
 import at.aau.softwaredynamics.dependency.NodeDependency;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.markup.*;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.TextEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.roots.ProjectFileIndex;
@@ -58,13 +60,18 @@ public class GetSourceCode extends AnAction {
         // Set the availability based on whether a project is open
         Project project = e.getProject();
         e.getPresentation().setEnabledAndVisible(project != null);
-        Editor editor = e.getData(CommonDataKeys.EDITOR);
+
+        //Editor editor = e.getData(CommonDataKeys.EDITOR);
         if (ErrorHelper.errorHelperInstance.getHasErrors()) {
             e.getPresentation().setEnabled(false);
             myNotifierClass.notify(e.getProject(), "Error in the Source-Code!");
         }
-        if (editor != null) {
+        /*if (editor != null) {
             removeHighlighters(editor);
+        }*/
+        if (project != null) {
+            FileEditor[] editors = FileEditorManager.getInstance(project).getAllEditors();
+            clearEditors(editors);
         }
         sourceCode.clear();
         classificationHelper.clearAndInitializeGraph();
@@ -73,18 +80,16 @@ public class GetSourceCode extends AnAction {
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
         // Using the event, implement an action. For example, create and show a dialog.
-        iterateProjectContent(e.getProject());
-        //System.out.println(classificationHelper.getGraph().toString());
-        Editor editor = e.getData(CommonDataKeys.EDITOR);
-        Vector<LineNumberRange> ranges = classificationHelper.checkForCycles(classificationHelper.getGraph());
         if (sourceCode.isEmpty()) {
             myNotifierClass.notify(e.getProject(), "No Source-Code to check!");
         }
+        iterateProjectContent(e.getProject());
+        //System.out.println(classificationHelper.getGraph().toString());
+        Editor editor = e.getData(CommonDataKeys.EDITOR);
+        Vector<NodeDependency> nodeDependencies = classificationHelper.checkForCycles(classificationHelper.getGraph());
+
         if (editor != null) {
-            for (LineNumberRange range : ranges) {
-                System.out.println(range.getStartOffset() + " " + range.getEndOffset());
-                highlightTextRange(editor, range.getStartOffset(), range.getEndOffset());
-            }
+            highlightTextRange(editor, nodeDependencies);
         }
         //highlightLine(e.getData(CommonDataKeys.EDITOR));
     }
@@ -120,19 +125,16 @@ public class GetSourceCode extends AnAction {
         });
     }
 
-    private void printOut(ArrayList<String> myList) {
-        myList.forEach(System.out::println);
-    }
-
-
-    private void highlightTextRange(Editor editor, int startOffset, int endOffset) {
+    private void highlightTextRange(Editor editor, Vector<NodeDependency> dependencies) {
         /*Document doc = editor.getDocument();
         int startOffset = doc.getLineStartOffset(7);
         int endOffset = doc.getLineEndOffset(7); // assuming open line range [4-8)*/
-        RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffset, endOffset, 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.EXACT_RANGE);
-        highlighter.setErrorStripeMarkColor(JBColor.RED);
-        highlighter.setErrorStripeTooltip("Dependency Detection Tool: Dependency detected");
-        myHighlighters.add(highlighter);
+        for (NodeDependency nodeDependency : dependencies) {
+            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(nodeDependency.getLineNumbers().getStartOffset(), nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.EXACT_RANGE);
+            highlighter.setErrorStripeMarkColor(JBColor.RED);
+            highlighter.setErrorStripeTooltip(nodeDependency.toString());
+            myHighlighters.add(highlighter);
+        }
     }
 
     private void highlightLine(Editor editor) {
@@ -143,11 +145,23 @@ public class GetSourceCode extends AnAction {
     }
 
     private void removeHighlighters(Editor editor) {
+        ArrayList<RangeHighlighter> highlighters = new ArrayList<>();
         if (!myHighlighters.isEmpty()) {
             for (RangeHighlighter highlighter : myHighlighters) {
                 editor.getMarkupModel().removeHighlighter(highlighter);
+                //myHighlighters.remove(highlighter);
+                highlighters.add(highlighter);
+            }
+            for (RangeHighlighter highlighter : highlighters) {
                 myHighlighters.remove(highlighter);
             }
+        }
+    }
+
+    private void clearEditors(FileEditor[] editors) {
+        for (FileEditor editor : editors) {
+            TextEditor myTxtEditor = (TextEditor) editor;
+            removeHighlighters(myTxtEditor.getEditor());
         }
     }
 
