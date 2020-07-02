@@ -4,8 +4,20 @@ import at.aau.softwaredynamics.dependency.DependencyExtractor;
 import at.aau.softwaredynamics.dependency.NodeDependency;
 import at.aau.softwaredynamics.gen.SpoonTreeGenerator;
 import at.aau.softwaredynamics.matchers.JavaMatchers;
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.editor.markup.EffectType;
+import com.intellij.openapi.editor.markup.HighlighterTargetArea;
+import com.intellij.openapi.editor.markup.RangeHighlighter;
+import com.intellij.openapi.editor.markup.TextAttributes;
+import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.TextEditor;
+import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.ui.JBColor;
 import org.jgrapht.Graph;
-import org.jgrapht.alg.cycle.CycleDetector;
+import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
+import org.jgrapht.alg.interfaces.StrongConnectivityAlgorithm;
 import org.jgrapht.graph.DirectedPseudograph;
 
 import java.util.*;
@@ -13,15 +25,13 @@ import java.util.*;
 public class ClassificationHelper {
 
     private JChangeClassifier classifier;
-    private final ArrayList<String> dependencies = new ArrayList<String>();
-    private CycleDetector<String, NodeDependencyEdge> cycleDetector;
     private Graph<String, NodeDependencyEdge> g;
+    private final Vector<RangeHighlighter> myHighlighters = new Vector<>();
 
     public ClassificationHelper() {
         //initialize classifier.
         try {
             classifier = new JChangeClassifier(false, JavaMatchers.IterativeJavaMatcher_Spoon.class, new SpoonTreeGenerator());
-            //g = new DefaultDirectedGraph<String, DefaultEdge>(DefaultEdge.class);
         } catch (Exception exception) {
             exception.printStackTrace();
         }
@@ -53,46 +63,97 @@ public class ClassificationHelper {
         this.g = new DirectedPseudograph<String, NodeDependencyEdge>(NodeDependencyEdge.class);
     }
 
-    public Vector<NodeDependency> checkForCycles(Graph<String, NodeDependencyEdge> g) {
-        Vector<NodeDependency> nodeDependencies = new Vector<NodeDependency>();
+    public void checkForCycles(Graph<String, NodeDependencyEdge> g, FileEditor[] editors) {
+        ArrayList<Editor> myEditors = this.FileEditorToEditor(editors);
+        ArrayList<String> vertices = new ArrayList<>();
+        Vector<NodeDependency> nodeDependencies = new Vector<>();
         // Checking for cycles in the dependencies
-        cycleDetector = new CycleDetector<String, NodeDependencyEdge>(g);
-        // Cycle(s) detected.
-        if (cycleDetector.detectCycles()) {
-            Iterator<String> iterator;
-            Set<String> cycleVertices;
-            Set<String> subCycle;
 
-            String cycle;
+        // computes all the strongly connected components of the directed graph
+        StrongConnectivityAlgorithm<String, NodeDependencyEdge> scAlg = new KosarajuStrongConnectivityInspector<>(g);
+        List<Graph<String, NodeDependencyEdge>> stronglyConnectedSubgraphs = scAlg.getStronglyConnectedComponents();
 
-            System.out.println("Cycles detected.");
-
-            // Get all vertices involved in cycles.
-            cycleVertices = cycleDetector.findCycles();
-
-            // Loop through vertices trying to find disjoint cycles.
-            while (!cycleVertices.isEmpty()) {
-                System.out.println("Cycle:");
-
-                // Get a vertex involved in a cycle.
-                iterator = cycleVertices.iterator();
-                cycle = iterator.next();
-
-                // Get all vertices involved with this vertex.
-                subCycle = cycleDetector.findCyclesContainingVertex(cycle);
-                for (String sub : subCycle) {
-                    System.out.println("   " + sub);
-                    Set<NodeDependencyEdge> edges = g.getAllEdges(cycle, sub);
-                    for (NodeDependencyEdge ed : edges) {
-                        nodeDependencies.add(ed.getNodeDependency());
-                        System.out.println(ed.getNodeDependency().toString());
+        // prints the strongly connected components
+        System.out.println("Strongly connected components:");
+        for (Graph<String, NodeDependencyEdge> stronglyConnectedSubgraph : stronglyConnectedSubgraphs) {
+            vertices.addAll(stronglyConnectedSubgraph.vertexSet());
+            HashSet<NodeDependencyEdge> edges = new HashSet<>();
+            for (String vertex : vertices) {
+                Editor edt = this.getEditor(myEditors, vertex);
+                if (edt != null) {
+                    for (String vertex2 : vertices) {
+                        Set<NodeDependencyEdge> npEdges = stronglyConnectedSubgraph.getAllEdges(vertex, vertex2);
+                        edges.addAll(npEdges);
                     }
-                    // Remove vertex so that this cycle is not encountered again
-                    cycleVertices.remove(sub);
+                    for (NodeDependencyEdge edge : edges) {
+                        nodeDependencies.add(edge.getNodeDependency());
+                    }
+                    highlightTextRange(edt, nodeDependencies);
+                    edges.clear();
                 }
             }
         }
-        return nodeDependencies;
+    }
+
+    private ArrayList<Editor> FileEditorToEditor(FileEditor[] editors) {
+        ArrayList<Editor> myEditors = new ArrayList<>();
+        for (FileEditor editor : editors) {
+            TextEditor txtEditor = (TextEditor) editor;
+            myEditors.add(txtEditor.getEditor());
+        }
+        return myEditors;
+    }
+
+    private void highlightTextRange(Editor editor, Vector<NodeDependency> nodeDependencies) {
+        for (NodeDependency nodeDependency : nodeDependencies) {
+            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(nodeDependency.getLineNumbers().getStartOffset(), nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.LINES_IN_RANGE);
+            highlighter.setErrorStripeMarkColor(JBColor.RED);
+            highlighter.setErrorStripeTooltip(nodeDependency.toString());
+            myHighlighters.add(highlighter);
+        }
+    }
+
+    private Editor getEditor(ArrayList<Editor> editors, String name) {
+        Editor myEditor = null;
+        for (Editor editor : editors) {
+            Document doc = editor.getDocument();
+            VirtualFile virtualFile = FileDocumentManager.getInstance().getFile(doc);
+            if (virtualFile != null) {
+                String filename = virtualFile.getName().split("[.]")[0];
+                if (filename.equals(name)) {
+                    myEditor = editor;
+                }
+            }
+        }
+        return myEditor;
+    }
+
+    public void clearEditors(FileEditor[] editors) {
+        for (FileEditor editor : editors) {
+            TextEditor myTxtEditor = (TextEditor) editor;
+            removeHighlighters(myTxtEditor.getEditor());
+        }
+    }
+
+    private void removeHighlighters(Editor editor) {
+        ArrayList<RangeHighlighter> highlighters = new ArrayList<>();
+        if (!myHighlighters.isEmpty()) {
+            for (RangeHighlighter highlighter : myHighlighters) {
+                Document docedit = editor.getDocument();
+                Document docrange = highlighter.getDocument();
+                VirtualFile vfedit = FileDocumentManager.getInstance().getFile(docedit);
+                VirtualFile vfrange = FileDocumentManager.getInstance().getFile(docrange);
+                if (vfedit != null && vfrange != null) {
+                    if (vfedit.getName().equals(vfrange.getName())) {
+                        editor.getMarkupModel().removeHighlighter(highlighter);
+                        highlighters.add(highlighter);
+                    }
+                }
+            }
+        }
+        for (RangeHighlighter highlighter : highlighters) {
+            myHighlighters.remove(highlighter);
+        }
     }
 
 }
