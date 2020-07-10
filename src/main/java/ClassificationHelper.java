@@ -87,9 +87,11 @@ public class ClassificationHelper {
                     }
                     for (NodeDependencyEdge edge : edges) {
                         nodeDependencies.add(edge.getNodeDependency());
+                        System.out.println("Class " + vertex + " dependent on " + edge.getNodeDependency().getDependency().getDependentOnClass() + " fully name: " + edge.getNodeDependency().getDependency().getFullyQualifiedName() + " type: " + edge.getNodeDependency().getDependency().getType());
                     }
                     highlightTextRange(edt, nodeDependencies);
                     edges.clear();
+                    nodeDependencies.clear();
                 }
             }
         }
@@ -105,12 +107,18 @@ public class ClassificationHelper {
     }
 
     private void highlightTextRange(Editor editor, Vector<NodeDependency> nodeDependencies) {
+        Document document = editor.getDocument();
         for (NodeDependency nodeDependency : nodeDependencies) {
-            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(nodeDependency.getLineNumbers().getStartOffset(), nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.LINES_IN_RANGE);
+            int startOffsetOfLine = document.getLineStartOffset(nodeDependency.getLineNumbers().getStartLine() - 1);
+            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.EXACT_RANGE);
             highlighter.setErrorStripeMarkColor(JBColor.RED);
-            highlighter.setErrorStripeTooltip(nodeDependency.toString());
+            highlighter.setErrorStripeTooltip(beautifyOutput(nodeDependency));
             myHighlighters.add(highlighter);
         }
+    }
+
+    private String beautifyOutput(NodeDependency nodeDependency) {
+        return "Type of Dependency: " + nodeDependency.getDependency().getType() + "\n" + "Dependent on Class: " + nodeDependency.getDependency().getDependentOnClass() + "\n" + "Qualified Name: " + nodeDependency.getDependency().getFullyQualifiedName();
     }
 
     private Editor getEditor(ArrayList<Editor> editors, String name) {
