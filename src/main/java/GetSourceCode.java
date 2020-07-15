@@ -1,4 +1,5 @@
 import at.aau.softwaredynamics.dependency.NodeDependency;
+import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.CommonDataKeys;
@@ -9,15 +10,20 @@ import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.roots.ProjectFileIndex;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.WindowManager;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaFile;
 import com.intellij.psi.PsiManager;
+import com.intellij.psi.search.FileTypeIndex;
+import com.intellij.psi.search.GlobalSearchScope;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 
 
@@ -74,9 +80,16 @@ public class GetSourceCode extends AnAction {
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
         // Using the event, implement an action. For example, create and show a dialog.
-        iterateProjectContent(e.getProject());
+        //iterateProjectContent(e.getProject());
+        ResultHelper myHelper = collectJavaFiles(e.getProject());
+        //ApplicationManager.getApplication().executeOnPooledThread(() -> buildGraphUsingMap(myHelper));
+        buildGraphUsingMap(myHelper);
         FileEditor[] editors = FileEditorManager.getInstance(e.getProject()).getAllEditors();
-        classificationHelper.checkForCycles(classificationHelper.getGraph(), editors);
+        try {
+            classificationHelper.checkForCycles(classificationHelper.getGraph(), editors);
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        }
         if (sourceCode.isEmpty()) {
             myNotifierClass.notify(e.getProject(), "No Source-Code to check!");
         }
@@ -86,35 +99,91 @@ public class GetSourceCode extends AnAction {
         ProjectFileIndex.SERVICE.getInstance(project).iterateContent(fileOrDir -> {
             PsiFile sourceFile = PsiManager.getInstance(project).findFile(fileOrDir);
             if (sourceFile instanceof PsiJavaFile) {
-                PsiClass[] classes = ((PsiJavaFile) sourceFile).getClasses();
-                for (PsiClass sc : classes) {
-                    sourceCode.add(sc.getText());
-                    //Add graph vertices if there are dependencies
-                    try {
-                        if (classificationHelper.getDepCount(sc.getText()) != 0) {
-                            classificationHelper.getGraph().addVertex(sc.getQualifiedName());
-                            for (NodeDependency nodeDependency : classificationHelper.getNodeDependency(sc.getText())) {
-                                if (!nodeDependency.getDependency().getDependentOnClass().contains("java") && !nodeDependency.getDependency().getSelfDependency()) {
-                                    if (!classificationHelper.getGraph().containsVertex(nodeDependency.getDependency().getDependentOnClass())) {
-                                        classificationHelper.getGraph().addVertex(nodeDependency.getDependency().getDependentOnClass());
+                if (!sourceFile.getContainingDirectory().toString().contains("src" + "\\" + "test")) {
+                    PsiClass[] classes = ((PsiJavaFile) sourceFile).getClasses();
+                    for (PsiClass sc : classes) {
+                        sourceCode.add(sc.getText());
+                        //Add graph vertices if there are dependencies
+                        try {
+                            if (classificationHelper.getDepCount(sc.getText()) != 0) {
+                                classificationHelper.getGraph().addVertex(sc.getQualifiedName());
+                                for (NodeDependency nodeDependency : classificationHelper.getNodeDependency(sc.getText())) {
+                                    if (!nodeDependency.getDependency().getDependentOnClass().contains("java") && !nodeDependency.getDependency().getSelfDependency()) {
+                                        if (!classificationHelper.getGraph().containsVertex(nodeDependency.getDependency().getDependentOnClass())) {
+                                            classificationHelper.getGraph().addVertex(nodeDependency.getDependency().getDependentOnClass());
+                                        }
+                                        classificationHelper.getGraph().addEdge(sc.getQualifiedName(), nodeDependency.getDependency().getDependentOnClass(), new NodeDependencyEdge(nodeDependency));
                                     }
-                                    classificationHelper.getGraph().addEdge(sc.getQualifiedName(), nodeDependency.getDependency().getDependentOnClass(), new NodeDependencyEdge(nodeDependency));
                                 }
-                            }
 
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
-                    } catch (Exception e) {
-                        e.printStackTrace();
                     }
                 }
-
             }
             return true;
         });
     }
 
+    private ResultHelper collectJavaFiles(Project project) {
+        HashMap<String, String> psiJavaFiles = new HashMap<>();
+        HashMap<String, String> psiInnerJavaFiles = new HashMap<>();
+        ResultHelper myHelper = new ResultHelper(psiJavaFiles, psiInnerJavaFiles);
+        Collection<VirtualFile> projectJavaFiles = FileTypeIndex.getFiles(JavaFileType.INSTANCE, GlobalSearchScope.projectScope(project));
+        if (!projectJavaFiles.isEmpty()) {
+            for (VirtualFile virtualFile : projectJavaFiles) {
+                if (virtualFile != null) {
+                    PsiJavaFile psiJavaFile = (PsiJavaFile) PsiManager.getInstance(project).findFile(virtualFile);
+                    if (psiJavaFile != null && !psiJavaFile.getContainingDirectory().toString().contains("src" + "\\" + "test")) {
+                        PsiClass[] classes = psiJavaFile.getClasses();
+                        if (classes.length > 0) {
+                            for (PsiClass psiClass : classes) {
+                                psiJavaFiles.put(psiClass.getName(), psiClass.getText());
+                                sourceCode.add(psiClass.getName());
+                                PsiClass[] psiInnerClasses = psiClass.getInnerClasses();
+                                if (psiInnerClasses.length > 0) {
+                                    for (PsiClass psiInnerClass : psiInnerClasses) {
+                                        psiInnerJavaFiles.put(psiInnerClass.getName(), psiInnerClass.getText());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return myHelper;
+    }
+
+    private void buildGraphUsingMap(ResultHelper myHelper) {
+
+        HashMap<String, String> psiJavaFiles = myHelper.getPsiClasses();
+        HashMap<String, String> psiInnerJavaFiles = myHelper.getPsiInnerClasses();
+        if (!psiJavaFiles.isEmpty()) {
+            for (String psiClass : psiJavaFiles.keySet()) {
+                try {
+                    //Add graph vertices if there are dependencies
+                    if (classificationHelper.getDepCount(psiJavaFiles.get(psiClass)) != 0) {
+                        classificationHelper.getGraph().addVertex(psiClass);
+                        for (NodeDependency nodeDependency : classificationHelper.getNodeDependency(psiJavaFiles.get(psiClass))) {
+                            if (!nodeDependency.getDependency().getDependentOnClass().contains("java.") && !nodeDependency.getDependency().getDependentOnClass().startsWith(".") && !nodeDependency.getDependency().getSelfDependency() && psiJavaFiles.containsKey(nodeDependency.getDependency().getDependentOnClass())) {
+                                if (!classificationHelper.getGraph().containsVertex(nodeDependency.getDependency().getDependentOnClass())) {
+                                    classificationHelper.getGraph().addVertex(nodeDependency.getDependency().getDependentOnClass());
+                                }
+                                classificationHelper.getGraph().addEdge(psiClass, nodeDependency.getDependency().getDependentOnClass(), new NodeDependencyEdge(nodeDependency));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
 
 
+    }
 
 
 }

@@ -63,7 +63,7 @@ public class ClassificationHelper {
         this.g = new DirectedPseudograph<String, NodeDependencyEdge>(NodeDependencyEdge.class);
     }
 
-    public void checkForCycles(Graph<String, NodeDependencyEdge> g, FileEditor[] editors) {
+    public void checkForCycles(Graph<String, NodeDependencyEdge> g, FileEditor[] editors) throws Exception {
         ArrayList<Editor> myEditors = this.FileEditorToEditor(editors);
         ArrayList<String> vertices = new ArrayList<>();
         Vector<NodeDependency> nodeDependencies = new Vector<>();
@@ -83,7 +83,10 @@ public class ClassificationHelper {
                 if (edt != null) {
                     for (String vertex2 : vertices) {
                         Set<NodeDependencyEdge> npEdges = stronglyConnectedSubgraph.getAllEdges(vertex, vertex2);
-                        edges.addAll(npEdges);
+                        if (npEdges != null) {
+                            edges.addAll(npEdges);
+                        }
+
                     }
                     for (NodeDependencyEdge edge : edges) {
                         nodeDependencies.add(edge.getNodeDependency());
