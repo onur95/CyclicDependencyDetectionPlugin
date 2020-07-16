@@ -13,7 +13,10 @@ import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.TextEditor;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.PsiJavaFile;
+import com.intellij.psi.PsiManager;
 import com.intellij.ui.JBColor;
 import org.jgrapht.Graph;
 import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
@@ -63,7 +66,7 @@ public class ClassificationHelper {
         this.g = new DirectedPseudograph<String, NodeDependencyEdge>(NodeDependencyEdge.class);
     }
 
-    public void checkForCycles(Graph<String, NodeDependencyEdge> g, FileEditor[] editors) throws Exception {
+    public void checkForCycles(Graph<String, NodeDependencyEdge> g, FileEditor[] editors, Project project) throws Exception {
         ArrayList<Editor> myEditors = this.FileEditorToEditor(editors);
         ArrayList<String> vertices = new ArrayList<>();
         Vector<NodeDependency> nodeDependencies = new Vector<>();
@@ -79,7 +82,7 @@ public class ClassificationHelper {
             vertices.addAll(stronglyConnectedSubgraph.vertexSet());
             HashSet<NodeDependencyEdge> edges = new HashSet<>();
             for (String vertex : vertices) {
-                Editor edt = this.getEditor(myEditors, vertex);
+                Editor edt = this.getEditor(myEditors, vertex, project);
                 if (edt != null) {
                     for (String vertex2 : vertices) {
                         Set<NodeDependencyEdge> npEdges = stronglyConnectedSubgraph.getAllEdges(vertex, vertex2);
@@ -113,6 +116,7 @@ public class ClassificationHelper {
         Document document = editor.getDocument();
         for (NodeDependency nodeDependency : nodeDependencies) {
             int startOffsetOfLine = document.getLineStartOffset(nodeDependency.getLineNumbers().getStartLine() - 1);
+            System.out.println("StartOffsetOflIne :" + startOffsetOfLine);
             RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.EXACT_RANGE);
             highlighter.setErrorStripeMarkColor(JBColor.RED);
             highlighter.setErrorStripeTooltip(beautifyOutput(nodeDependency));
@@ -124,15 +128,24 @@ public class ClassificationHelper {
         return "Type of Dependency: " + nodeDependency.getDependency().getType() + "\n" + "Dependent on Class: " + nodeDependency.getDependency().getDependentOnClass() + "\n" + "Qualified Name: " + nodeDependency.getDependency().getFullyQualifiedName();
     }
 
-    private Editor getEditor(ArrayList<Editor> editors, String name) {
+    private Editor getEditor(ArrayList<Editor> editors, String name, Project project) {
         Editor myEditor = null;
+        String filename = "";
         for (Editor editor : editors) {
             Document doc = editor.getDocument();
             VirtualFile virtualFile = FileDocumentManager.getInstance().getFile(doc);
             if (virtualFile != null) {
-                String filename = virtualFile.getName().split("[.]")[0];
-                if (filename.equals(name)) {
-                    myEditor = editor;
+                PsiJavaFile psiFile = (PsiJavaFile) PsiManager.getInstance(project).findFile(virtualFile);
+                if (psiFile != null) {
+                    if (psiFile.getPackageName().isEmpty()) {
+                        filename = virtualFile.getName().split("[.]")[0];
+                    } else {
+                        filename = psiFile.getPackageName() + "." + virtualFile.getNameWithoutExtension();
+                    }
+
+                    if (filename.equals(name)) {
+                        myEditor = editor;
+                    }
                 }
             }
         }

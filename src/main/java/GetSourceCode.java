@@ -9,11 +9,9 @@ import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
-import com.intellij.openapi.roots.ProjectFileIndex;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.WindowManager;
 import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiJavaFile;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.search.FileTypeIndex;
@@ -86,45 +84,13 @@ public class GetSourceCode extends AnAction {
         buildGraphUsingMap(myHelper);
         FileEditor[] editors = FileEditorManager.getInstance(e.getProject()).getAllEditors();
         try {
-            classificationHelper.checkForCycles(classificationHelper.getGraph(), editors);
+            classificationHelper.checkForCycles(classificationHelper.getGraph(), editors, e.getProject());
         } catch (Exception exception) {
             exception.printStackTrace();
         }
         if (sourceCode.isEmpty()) {
             myNotifierClass.notify(e.getProject(), "No Source-Code to check!");
         }
-    }
-
-    private void iterateProjectContent(Project project) {
-        ProjectFileIndex.SERVICE.getInstance(project).iterateContent(fileOrDir -> {
-            PsiFile sourceFile = PsiManager.getInstance(project).findFile(fileOrDir);
-            if (sourceFile instanceof PsiJavaFile) {
-                if (!sourceFile.getContainingDirectory().toString().contains("src" + "\\" + "test")) {
-                    PsiClass[] classes = ((PsiJavaFile) sourceFile).getClasses();
-                    for (PsiClass sc : classes) {
-                        sourceCode.add(sc.getText());
-                        //Add graph vertices if there are dependencies
-                        try {
-                            if (classificationHelper.getDepCount(sc.getText()) != 0) {
-                                classificationHelper.getGraph().addVertex(sc.getQualifiedName());
-                                for (NodeDependency nodeDependency : classificationHelper.getNodeDependency(sc.getText())) {
-                                    if (!nodeDependency.getDependency().getDependentOnClass().contains("java") && !nodeDependency.getDependency().getSelfDependency()) {
-                                        if (!classificationHelper.getGraph().containsVertex(nodeDependency.getDependency().getDependentOnClass())) {
-                                            classificationHelper.getGraph().addVertex(nodeDependency.getDependency().getDependentOnClass());
-                                        }
-                                        classificationHelper.getGraph().addEdge(sc.getQualifiedName(), nodeDependency.getDependency().getDependentOnClass(), new NodeDependencyEdge(nodeDependency));
-                                    }
-                                }
-
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-            }
-            return true;
-        });
     }
 
     private ResultHelper collectJavaFiles(Project project) {
@@ -138,7 +104,14 @@ public class GetSourceCode extends AnAction {
                     PsiJavaFile psiJavaFile = (PsiJavaFile) PsiManager.getInstance(project).findFile(virtualFile);
                     if (psiJavaFile != null && !psiJavaFile.getContainingDirectory().toString().contains("src" + "\\" + "test")) {
                         PsiClass[] classes = psiJavaFile.getClasses();
-                        if (classes.length > 0) {
+                        String[] name = psiJavaFile.getName().split("[.]");
+                        if (psiJavaFile.getPackageName().isEmpty()) {
+                            psiJavaFiles.put(name[0], psiJavaFile.getText());
+                        } else {
+                            psiJavaFiles.put(psiJavaFile.getPackageName() + "." + name[0], psiJavaFile.getText());
+                        }
+                        sourceCode.add(psiJavaFile.getName());
+                        /*if (classes.length > 0) {
                             for (PsiClass psiClass : classes) {
                                 psiJavaFiles.put(psiClass.getName(), psiClass.getText());
                                 sourceCode.add(psiClass.getName());
@@ -149,7 +122,7 @@ public class GetSourceCode extends AnAction {
                                     }
                                 }
                             }
-                        }
+                        }*/
                     }
                 }
             }
@@ -164,6 +137,7 @@ public class GetSourceCode extends AnAction {
         if (!psiJavaFiles.isEmpty()) {
             for (String psiClass : psiJavaFiles.keySet()) {
                 try {
+
                     //Add graph vertices if there are dependencies
                     if (classificationHelper.getDepCount(psiJavaFiles.get(psiClass)) != 0) {
                         classificationHelper.getGraph().addVertex(psiClass);
