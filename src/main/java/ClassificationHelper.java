@@ -116,7 +116,6 @@ public class ClassificationHelper {
         Document document = editor.getDocument();
         for (NodeDependency nodeDependency : nodeDependencies) {
             int startOffsetOfLine = document.getLineStartOffset(nodeDependency.getLineNumbers().getStartLine() - 1);
-            System.out.println("StartOffsetOflIne :" + startOffsetOfLine);
             RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.EXACT_RANGE);
             highlighter.setErrorStripeMarkColor(JBColor.RED);
             highlighter.setErrorStripeTooltip(beautifyOutput(nodeDependency));

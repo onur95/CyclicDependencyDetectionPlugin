@@ -7,6 +7,8 @@ import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.markup.RangeHighlighter;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -80,16 +82,21 @@ public class GetSourceCode extends AnAction {
         // Using the event, implement an action. For example, create and show a dialog.
         //iterateProjectContent(e.getProject());
         ResultHelper myHelper = collectJavaFiles(e.getProject());
-        //ApplicationManager.getApplication().executeOnPooledThread(() -> buildGraphUsingMap(myHelper));
-        buildGraphUsingMap(myHelper);
+        if (sourceCode.isEmpty()) {
+            myNotifierClass.notify(e.getProject(), "No Source-Code to check!");
+        }
+        ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
+            ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
+            indicator.setText("Doing work...");
+            indicator.setFraction(0.5);
+            buildGraphUsingMap(myHelper);
+            indicator.setFraction(1.0);
+        }, "Building Graph and Highlighting Dependencies", false, e.getProject());
         FileEditor[] editors = FileEditorManager.getInstance(e.getProject()).getAllEditors();
         try {
             classificationHelper.checkForCycles(classificationHelper.getGraph(), editors, e.getProject());
         } catch (Exception exception) {
             exception.printStackTrace();
-        }
-        if (sourceCode.isEmpty()) {
-            myNotifierClass.notify(e.getProject(), "No Source-Code to check!");
         }
     }
 
