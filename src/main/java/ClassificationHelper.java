@@ -29,6 +29,7 @@ public class ClassificationHelper {
 
     private JChangeClassifier classifier;
     private Graph<String, NodeDependencyEdge> g;
+    private final MyNotifierClass myNotifierClass = new MyNotifierClass();
     private final Vector<RangeHighlighter> myHighlighters = new Vector<>();
 
     public ClassificationHelper() {
@@ -48,6 +49,7 @@ public class ClassificationHelper {
         return dependencyChanges.getAllUnchangedNodeDependenciesSource();
     }
 
+    //returns number of dependencies of a class
     public int getDepCount(String sourceClass) throws Exception {
         classifier.classify(sourceClass, sourceClass, false);
         DependencyExtractor dependencyExtractor = new DependencyExtractor(classifier.getMappings(), classifier.getActions(), classifier.getSrcContext().getRoot(), classifier.getDstContext().getRoot(), sourceClass, sourceClass);
@@ -78,6 +80,7 @@ public class ClassificationHelper {
 
         // prints the strongly connected components
         System.out.println("Strongly connected components:");
+        ArrayList<String> dependeySequences = new ArrayList<>(Collections.emptyList());
         for (Graph<String, NodeDependencyEdge> stronglyConnectedSubgraph : stronglyConnectedSubgraphs) {
             vertices.addAll(stronglyConnectedSubgraph.vertexSet());
             HashSet<NodeDependencyEdge> edges = new HashSet<>();
@@ -94,15 +97,21 @@ public class ClassificationHelper {
                     for (NodeDependencyEdge edge : edges) {
                         nodeDependencies.add(edge.getNodeDependency());
                         System.out.println("Class " + vertex + " dependent on " + edge.getNodeDependency().getDependency().getDependentOnClass() + " fully name: " + edge.getNodeDependency().getDependency().getFullyQualifiedName() + " type: " + edge.getNodeDependency().getDependency().getType());
+                        dependeySequences.add(vertex + " -> " + edge.getNodeDependency().getDependency().getDependentOnClass());
                     }
+
                     highlightTextRange(edt, nodeDependencies);
                     edges.clear();
                     nodeDependencies.clear();
                 }
             }
         }
+        myNotifierClass.notify(project, this.getRangeHighlighterCount() + " dependencies found!");
+        this.handleDependencySequences(dependeySequences, project);
+        dependeySequences.clear();
     }
 
+    //converts FileEditor instances to Editor instances
     private ArrayList<Editor> FileEditorToEditor(FileEditor[] editors) {
         ArrayList<Editor> myEditors = new ArrayList<>();
         for (FileEditor editor : editors) {
@@ -116,8 +125,8 @@ public class ClassificationHelper {
         Document document = editor.getDocument();
         for (NodeDependency nodeDependency : nodeDependencies) {
             int startOffsetOfLine = document.getLineStartOffset(nodeDependency.getLineNumbers().getStartLine() - 1);
-            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.RED, EffectType.WAVE_UNDERSCORE, 13), HighlighterTargetArea.EXACT_RANGE);
-            highlighter.setErrorStripeMarkColor(JBColor.RED);
+            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.MAGENTA, EffectType.ROUNDED_BOX, 13), HighlighterTargetArea.EXACT_RANGE);
+            highlighter.setErrorStripeMarkColor(JBColor.MAGENTA);
             highlighter.setErrorStripeTooltip(beautifyOutput(nodeDependency));
             myHighlighters.add(highlighter);
         }
@@ -127,6 +136,7 @@ public class ClassificationHelper {
         return "Type of Dependency: " + nodeDependency.getDependency().getType() + "\n" + "Dependent on Class: " + nodeDependency.getDependency().getDependentOnClass() + "\n" + "Qualified Name: " + nodeDependency.getDependency().getFullyQualifiedName();
     }
 
+    //returns the Editor object for the current open file
     private Editor getEditor(ArrayList<Editor> editors, String name, Project project) {
         Editor myEditor = null;
         String filename = "";
@@ -151,6 +161,7 @@ public class ClassificationHelper {
         return myEditor;
     }
 
+    //remove RangeHighlighters for every open Editor object
     public void clearEditors(FileEditor[] editors) {
         for (FileEditor editor : editors) {
             TextEditor myTxtEditor = (TextEditor) editor;
@@ -158,6 +169,7 @@ public class ClassificationHelper {
         }
     }
 
+    //remove RangeHighlighters from the specified Editor object.
     private void removeHighlighters(Editor editor) {
         ArrayList<RangeHighlighter> highlighters = new ArrayList<>();
         if (!myHighlighters.isEmpty()) {
@@ -177,6 +189,25 @@ public class ClassificationHelper {
         for (RangeHighlighter highlighter : highlighters) {
             myHighlighters.remove(highlighter);
         }
+    }
+
+    private int getRangeHighlighterCount() {
+        if (myHighlighters.isEmpty()) {
+            return 0;
+        }
+        return myHighlighters.size();
+    }
+
+    //show the dependency sequence in a notification
+    private void handleDependencySequences(ArrayList<String> dp, Project project) {
+        LinkedHashSet<String> hashSet = new LinkedHashSet<>(dp);
+        ArrayList<String> listWithoutDuplicates = new ArrayList<>(hashSet);
+        StringBuilder sb = new StringBuilder("Dependency sequence:").append("\n");
+        for (String s : listWithoutDuplicates) {
+            sb.append(s).append("\n");
+        }
+        myNotifierClass.notify(project, sb.toString());
+
     }
 
 }

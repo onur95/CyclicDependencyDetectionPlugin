@@ -87,6 +87,7 @@ public class GetSourceCode extends AnAction {
         }
         ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
             ProgressIndicator indicator = ProgressManager.getInstance().getProgressIndicator();
+            indicator.setIndeterminate(false);
             indicator.setText("Doing work...");
             indicator.setFraction(0.5);
             buildGraphUsingMap(myHelper);
@@ -100,6 +101,7 @@ public class GetSourceCode extends AnAction {
         }
     }
 
+    //collects all Java files of a projects except for test files
     private ResultHelper collectJavaFiles(Project project) {
         HashMap<String, String> psiJavaFiles = new HashMap<>();
         HashMap<String, String> psiInnerJavaFiles = new HashMap<>();
@@ -137,6 +139,7 @@ public class GetSourceCode extends AnAction {
         return myHelper;
     }
 
+    //builds the graph using the java files and dependencies
     private void buildGraphUsingMap(ResultHelper myHelper) {
 
         HashMap<String, String> psiJavaFiles = myHelper.getPsiClasses();
