@@ -106,7 +106,7 @@ public class ClassificationHelper {
                 }
             }
         }
-        myNotifierClass.notify(project, this.getRangeHighlighterCount() + " dependencies found!");
+        //myNotifierClass.notify(project, this.getRangeHighlighterCount() + " dependencies found!");
         this.handleDependencySequences(dependeySequences, project);
         dependeySequences.clear();
     }
@@ -202,7 +202,7 @@ public class ClassificationHelper {
     private void handleDependencySequences(ArrayList<String> dp, Project project) {
         LinkedHashSet<String> hashSet = new LinkedHashSet<>(dp);
         ArrayList<String> listWithoutDuplicates = new ArrayList<>(hashSet);
-        StringBuilder sb = new StringBuilder("Dependency sequence:").append("\n");
+        StringBuilder sb = new StringBuilder(getRangeHighlighterCount() + " dependencies found!").append("\n").append("Dependency sequence:").append("\n");
         for (String s : listWithoutDuplicates) {
             sb.append(s).append("\n");
         }
