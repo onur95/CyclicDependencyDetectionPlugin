@@ -43,7 +43,7 @@ public class GetSourceCode extends AnAction {
     private final ArrayList<String> sourceCode = new ArrayList<>();
     private final HashSet<RangeHighlighter> myHighlighters = new HashSet<>();
     private final MyNotifierClass myNotifierClass = new MyNotifierClass();
-    private final ClassificationHelper classificationHelper = new ClassificationHelper();
+    //private final ClassificationHelper classificationHelper = new ClassificationHelper();
 
     public static Project getActiveProject() {
         Project[] projects = ProjectManager.getInstance().getOpenProjects();
@@ -71,10 +71,12 @@ public class GetSourceCode extends AnAction {
             myNotifierClass.notify(e.getProject(), "Error in the Source-Code!");
         }
         FileEditor[] editors = FileEditorManager.getInstance(project).getAllEditors();
-        classificationHelper.clearEditors(editors);
+        //classificationHelper.clearEditors(editors);
+        ClassificationHelper.classificationHelperInstance.clearEditors(editors);
 
         sourceCode.clear();
-        classificationHelper.clearAndInitializeGraph();
+        //classificationHelper.clearAndInitializeGraph();
+        ClassificationHelper.classificationHelperInstance.clearAndInitializeGraph();
     }
 
     @Override
@@ -95,7 +97,7 @@ public class GetSourceCode extends AnAction {
         }, "Building Graph and Highlighting Dependencies", false, e.getProject());
         FileEditor[] editors = FileEditorManager.getInstance(e.getProject()).getAllEditors();
         try {
-            classificationHelper.checkForCycles(classificationHelper.getGraph(), editors, e.getProject());
+            ClassificationHelper.classificationHelperInstance.checkForCycles(ClassificationHelper.classificationHelperInstance.getGraph(), editors, e.getProject());
         } catch (Exception exception) {
             exception.printStackTrace();
         }
@@ -149,14 +151,14 @@ public class GetSourceCode extends AnAction {
                 try {
 
                     //Add graph vertices if there are dependencies
-                    if (classificationHelper.getDepCount(psiJavaFiles.get(psiClass)) != 0) {
-                        classificationHelper.getGraph().addVertex(psiClass);
-                        for (NodeDependency nodeDependency : classificationHelper.getNodeDependency(psiJavaFiles.get(psiClass))) {
+                    if (ClassificationHelper.classificationHelperInstance.getDepCount(psiJavaFiles.get(psiClass)) != 0) {
+                        ClassificationHelper.classificationHelperInstance.getGraph().addVertex(psiClass);
+                        for (NodeDependency nodeDependency : ClassificationHelper.classificationHelperInstance.getNodeDependency(psiJavaFiles.get(psiClass))) {
                             if (!nodeDependency.getDependency().getDependentOnClass().contains("java.") && !nodeDependency.getDependency().getDependentOnClass().startsWith(".") && !nodeDependency.getDependency().getSelfDependency() && psiJavaFiles.containsKey(nodeDependency.getDependency().getDependentOnClass())) {
-                                if (!classificationHelper.getGraph().containsVertex(nodeDependency.getDependency().getDependentOnClass())) {
-                                    classificationHelper.getGraph().addVertex(nodeDependency.getDependency().getDependentOnClass());
+                                if (!ClassificationHelper.classificationHelperInstance.getGraph().containsVertex(nodeDependency.getDependency().getDependentOnClass())) {
+                                    ClassificationHelper.classificationHelperInstance.getGraph().addVertex(nodeDependency.getDependency().getDependentOnClass());
                                 }
-                                classificationHelper.getGraph().addEdge(psiClass, nodeDependency.getDependency().getDependentOnClass(), new NodeDependencyEdge(nodeDependency));
+                                ClassificationHelper.classificationHelperInstance.getGraph().addEdge(psiClass, nodeDependency.getDependency().getDependentOnClass(), new NodeDependencyEdge(nodeDependency));
                             }
                         }
                     }

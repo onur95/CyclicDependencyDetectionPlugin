@@ -6,10 +6,7 @@ import at.aau.softwaredynamics.gen.SpoonTreeGenerator;
 import at.aau.softwaredynamics.matchers.JavaMatchers;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.editor.markup.EffectType;
-import com.intellij.openapi.editor.markup.HighlighterTargetArea;
-import com.intellij.openapi.editor.markup.RangeHighlighter;
-import com.intellij.openapi.editor.markup.TextAttributes;
+import com.intellij.openapi.editor.markup.*;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.TextEditor;
@@ -31,6 +28,7 @@ public class ClassificationHelper {
     private Graph<String, NodeDependencyEdge> g;
     private final MyNotifierClass myNotifierClass = new MyNotifierClass();
     private final Vector<RangeHighlighter> myHighlighters = new Vector<>();
+    public static ClassificationHelper classificationHelperInstance = new ClassificationHelper();
 
     public ClassificationHelper() {
         //initialize classifier.
@@ -125,7 +123,7 @@ public class ClassificationHelper {
         Document document = editor.getDocument();
         for (NodeDependency nodeDependency : nodeDependencies) {
             int startOffsetOfLine = document.getLineStartOffset(nodeDependency.getLineNumbers().getStartLine() - 1);
-            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), 0, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.MAGENTA, EffectType.ROUNDED_BOX, 13), HighlighterTargetArea.EXACT_RANGE);
+            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), HighlighterLayer.WARNING, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.MAGENTA, EffectType.ROUNDED_BOX, 13), HighlighterTargetArea.EXACT_RANGE);
             highlighter.setErrorStripeMarkColor(JBColor.MAGENTA);
             highlighter.setErrorStripeTooltip(beautifyOutput(nodeDependency));
             myHighlighters.add(highlighter);
@@ -198,16 +196,19 @@ public class ClassificationHelper {
         return myHighlighters.size();
     }
 
-    //show the dependency sequence in a notification
+    //show the dependency sequence and dependency count in a notification
     private void handleDependencySequences(ArrayList<String> dp, Project project) {
         LinkedHashSet<String> hashSet = new LinkedHashSet<>(dp);
         ArrayList<String> listWithoutDuplicates = new ArrayList<>(hashSet);
-        StringBuilder sb = new StringBuilder(getRangeHighlighterCount() + " dependencies found!").append("\n").append("Dependency sequence:").append("\n");
+        StringBuilder sb = new StringBuilder(getRangeHighlighterCount() + " dependencies found!").append(System.lineSeparator()).append("Dependency sequence:").append(System.lineSeparator());
         for (String s : listWithoutDuplicates) {
-            sb.append(s).append("\n");
+            sb.append(s).append(System.lineSeparator());
         }
-        myNotifierClass.notify(project, sb.toString());
+        myNotifierClass.notify(project, "<html>" + sb.toString().replaceAll("\n", "<br/>") + "</html>");
+    }
 
+    public Vector<RangeHighlighter> getMyHighlighters() {
+        return myHighlighters;
     }
 
 }
