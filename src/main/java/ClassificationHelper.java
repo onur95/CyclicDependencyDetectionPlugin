@@ -78,7 +78,8 @@ public class ClassificationHelper {
 
         // prints the strongly connected components
         System.out.println("Strongly connected components:");
-        ArrayList<String> dependeySequences = new ArrayList<>(Collections.emptyList());
+        //ArrayList<String> dependeySequences = new ArrayList<>(Collections.emptyList());
+        TreeMap<String, String> treeMap = new TreeMap<>();
         for (Graph<String, NodeDependencyEdge> stronglyConnectedSubgraph : stronglyConnectedSubgraphs) {
             vertices.addAll(stronglyConnectedSubgraph.vertexSet());
             HashSet<NodeDependencyEdge> edges = new HashSet<>();
@@ -95,8 +96,10 @@ public class ClassificationHelper {
                     for (NodeDependencyEdge edge : edges) {
                         nodeDependencies.add(edge.getNodeDependency());
                         System.out.println("Class " + vertex + " dependent on " + edge.getNodeDependency().getDependency().getDependentOnClass() + " fully name: " + edge.getNodeDependency().getDependency().getFullyQualifiedName() + " type: " + edge.getNodeDependency().getDependency().getType());
-                        dependeySequences.add(vertex + " -> " + edge.getNodeDependency().getDependency().getDependentOnClass());
+                        //dependeySequences.add(vertex + " -> " + edge.getNodeDependency().getDependency().getDependentOnClass());
+                        treeMap.put(vertex, edge.getNodeDependency().getDependency().getDependentOnClass());
                     }
+
 
                     highlightTextRange(edt, nodeDependencies);
                     edges.clear();
@@ -105,8 +108,9 @@ public class ClassificationHelper {
             }
         }
         //myNotifierClass.notify(project, this.getRangeHighlighterCount() + " dependencies found!");
-        this.handleDependencySequences(dependeySequences, project);
-        dependeySequences.clear();
+        this.handleDependencySequences(stronglyConnectedSubgraphs.size(), treeMap, project);
+        //dependeySequences.clear();
+        treeMap.clear();
     }
 
     //converts FileEditor instances to Editor instances
@@ -197,18 +201,29 @@ public class ClassificationHelper {
     }
 
     //show the dependency sequence and dependency count in a notification
-    private void handleDependencySequences(ArrayList<String> dp, Project project) {
-        LinkedHashSet<String> hashSet = new LinkedHashSet<>(dp);
-        ArrayList<String> listWithoutDuplicates = new ArrayList<>(hashSet);
-        StringBuilder sb = new StringBuilder(getRangeHighlighterCount() + " dependencies found!").append(System.lineSeparator()).append("Dependency sequence:").append(System.lineSeparator());
-        for (String s : listWithoutDuplicates) {
-            sb.append(s).append(System.lineSeparator());
+    private void handleDependencySequences(int totalCircles, TreeMap<String, String> treeMap, Project project) {
+        if (!treeMap.isEmpty()) {
+            StringBuilder sb = new StringBuilder("Total cyclic dependencies: " + totalCircles).append("\n").append("Current path with " + getRangeHighlighterCount() + " dependencies:" + "\n")
+                    .append(treeMap.firstKey()).append(" -> ").append(treeMap.firstEntry().getValue());
+            getCircle(treeMap, treeMap.firstEntry().getValue(), sb, treeMap.firstKey());
+
+            myNotifierClass.notify(project, "<html>" + sb.toString().replaceAll("\n", "<br/>") + "</html>");
+        } else {
+            myNotifierClass.notify(project, getRangeHighlighterCount() + " cyclic dependencies found!");
         }
-        myNotifierClass.notify(project, "<html>" + sb.toString().replaceAll("\n", "<br/>") + "</html>");
+
     }
 
     public Vector<RangeHighlighter> getMyHighlighters() {
         return myHighlighters;
+    }
+
+    private void getCircle(TreeMap<String, String> treeMap, String node, StringBuilder stringBuilder, String firstElement) {
+        if (!node.equals(firstElement) && treeMap.containsKey(node)) {
+            String next = treeMap.get(node);
+            stringBuilder.append(" -> ").append(next);
+            getCircle(treeMap, next, stringBuilder, firstElement);
+        }
     }
 
 }
