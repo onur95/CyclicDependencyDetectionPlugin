@@ -17,6 +17,7 @@
         <!-- <fileDocumentManagerListener implementation="MyDocumentManagerListener"/> -->
         <editorFactoryMouseListener implementation="HoverPopupManager"/>
         <editorFactoryMouseMotionListener implementation="HoverPopupManager"/>
+        <checkinHandlerFactory implementation="MyPluginCheckinHandlerFactory"/>
     </extensions>
 
     <actions>
