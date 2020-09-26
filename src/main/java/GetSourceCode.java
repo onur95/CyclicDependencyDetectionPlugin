@@ -12,6 +12,8 @@ import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.openapi.wm.WindowManager;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiJavaFile;
@@ -64,7 +66,13 @@ public class GetSourceCode extends AnAction {
         Project project = e.getProject();
         Editor editor = e.getData(CommonDataKeys.EDITOR);
         e.getPresentation().setEnabledAndVisible(project != null && editor != null && editor.isInsertMode());
-
+        ToolWindowManager manager = ToolWindowManager.getInstance(project);
+        if (manager != null) {
+            ToolWindow window = manager.getToolWindow("Cyclic Dependency Detection");
+            if (window != null) {
+                manager.unregisterToolWindow("Cyclic Dependency Detection");
+            }
+        }
         //Editor editor = e.getData(CommonDataKeys.EDITOR);
         if (ErrorHelper.errorHelperInstance.getHasErrors()) {
             e.getPresentation().setEnabled(false);

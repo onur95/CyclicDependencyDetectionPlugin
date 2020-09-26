@@ -3,6 +3,8 @@ import com.intellij.openapi.actionSystem.ActionPlaces;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.ex.ActionUtil;
+import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vcs.CheckinProjectPanel;
 import com.intellij.openapi.vcs.VcsBundle;
@@ -11,6 +13,9 @@ import com.intellij.openapi.vcs.changes.ui.BooleanCommitOption;
 import com.intellij.openapi.vcs.checkin.CheckinHandler;
 import com.intellij.openapi.vcs.checkin.CheckinHandlerFactory;
 import com.intellij.openapi.vcs.ui.RefreshableOnComponent;
+import com.intellij.openapi.wm.ToolWindow;
+import com.intellij.openapi.wm.ToolWindowAnchor;
+import com.intellij.openapi.wm.ToolWindowManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -70,6 +75,7 @@ public class MyPluginCheckinHandlerFactory extends CheckinHandlerFactory {
                 String yesButton = VcsBundle.message("todo.in.new.review.button");
                 switch (Messages.showYesNoCancelDialog(panel.getProject(), text, title, yesButton, commitButton, getCancelButtonText(), getWarningIcon())) {
                     case Messages.YES:
+                        showDependencies();
                         return ReturnResult.CLOSE_WINDOW;
                     case Messages.NO:
                         return ReturnResult.COMMIT;
@@ -77,7 +83,18 @@ public class MyPluginCheckinHandlerFactory extends CheckinHandlerFactory {
                 return ReturnResult.CANCEL;
             }
 
+            private void showDependencies() {
+                ToolWindowManager manager = ToolWindowManager.getInstance(panel.getProject());
+                if (manager != null) {
+                    ApplicationManager.getApplication().invokeLater(() -> {
+                        ToolWindow window = manager.registerToolWindow("Cyclic Dependency Detection", false, ToolWindowAnchor.LEFT);
+                        window.getComponent().add(new DependenciesGUI(panel.getProject()).getPanel());
+                    }, ModalityState.NON_MODAL, panel.getProject().getDisposed());
+                }
+            }
+
         };
+
     }
 
 }
