@@ -8,9 +8,9 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindowManager;
+import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBList;
-import com.intellij.ui.components.JBPanel;
 
 import javax.swing.*;
 import java.awt.event.MouseAdapter;
@@ -18,7 +18,7 @@ import java.awt.event.MouseEvent;
 import java.util.Vector;
 
 public class DependenciesGUI {
-    private final JBPanel panel = new JBPanel();
+    private final JPanel panel = new JPanel();
     private final JBList<RangeHighlighter> myList;
 
     public DependenciesGUI(Project project) {
@@ -37,7 +37,7 @@ public class DependenciesGUI {
                         FileEditor fileEditor = FileEditorManager.getInstance(project).getSelectedEditor(file);
                         if (fileEditor == null) {
                             ToolWindowManager.getInstance(project).unregisterToolWindow("Cyclic Dependency Detection");
-                            Messages.showInfoMessage(project, "File not open. Please rerun Plugin or try commiting again!", "Information");
+                            Messages.showInfoMessage(project, "An editor was closed. Please rerun Plugin or try committing again!", "Information");
                         } else {
                             FileEditorManager.getInstance(project).navigateToTextEditor(new OpenFileDescriptor(project, file, highlighter.getStartOffset()), true);
                         }
@@ -48,6 +48,8 @@ public class DependenciesGUI {
         myList.setCellRenderer(new ListRenderer());
         panel.add(label);
         panel.add(myList);
+        panel.setOpaque(true);
+        panel.setBackground(JBColor.white);
     }
 
     public JPanel getPanel() {
