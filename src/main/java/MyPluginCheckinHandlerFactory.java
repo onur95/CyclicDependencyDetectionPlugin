@@ -87,7 +87,7 @@ public class MyPluginCheckinHandlerFactory extends CheckinHandlerFactory {
                 ToolWindowManager manager = ToolWindowManager.getInstance(panel.getProject());
                 if (manager != null) {
                     ApplicationManager.getApplication().invokeLater(() -> {
-                        ToolWindow window = manager.registerToolWindow("Cyclic Dependency Detection", false, ToolWindowAnchor.LEFT);
+                        ToolWindow window = manager.registerToolWindow("Cyclic Dependency Detection", false, ToolWindowAnchor.BOTTOM);
                         window.getComponent().add(new DependenciesGUI(panel.getProject()).getPanel());
                     }, ModalityState.NON_MODAL, panel.getProject().getDisposed());
                 }
