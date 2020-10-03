@@ -18,6 +18,8 @@
         <editorFactoryMouseListener implementation="HoverPopupManager"/>
         <editorFactoryMouseMotionListener implementation="HoverPopupManager"/>
         <checkinHandlerFactory implementation="MyPluginCheckinHandlerFactory"/>
+        <applicationConfigurable parentId="tools" id="PluginConfigurationClass" displayName="CDD Plugin Settings"
+                                 instance="PluginConfigurationClass"/>
     </extensions>
 
     <actions>

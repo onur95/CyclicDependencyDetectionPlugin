@@ -4,16 +4,21 @@ import at.aau.softwaredynamics.dependency.DependencyExtractor;
 import at.aau.softwaredynamics.dependency.NodeDependency;
 import at.aau.softwaredynamics.gen.SpoonTreeGenerator;
 import at.aau.softwaredynamics.matchers.JavaMatchers;
+import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.markup.*;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.TextEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiJavaFile;
 import com.intellij.psi.PsiManager;
+import com.intellij.psi.search.FileTypeIndex;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.ui.JBColor;
 import org.jgrapht.Graph;
 import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
@@ -29,6 +34,8 @@ public class ClassificationHelper {
     private final MyNotifierClass myNotifierClass = new MyNotifierClass();
     private final Vector<RangeHighlighter> myHighlighters = new Vector<>();
     public static ClassificationHelper classificationHelperInstance = new ClassificationHelper();
+
+    private final ArrayList<String> sourceCode = new ArrayList<>();
 
     public ClassificationHelper() {
         //initialize classifier.
@@ -53,7 +60,9 @@ public class ClassificationHelper {
         DependencyExtractor dependencyExtractor = new DependencyExtractor(classifier.getMappings(), classifier.getActions(), classifier.getSrcContext().getRoot(), classifier.getDstContext().getRoot(), sourceClass, sourceClass);
         dependencyExtractor.extractDependencies();
         DependencyChanges dependencyChanges = dependencyExtractor.getDependencyChanges();
-        return dependencyChanges.getAllUnchangedNodeDependenciesSource().size();
+        List<NodeDependency> nodeDependencies = dependencyChanges.getAllUnchangedNodeDependenciesSource();
+        nodeDependencies.removeIf(nodeDependency -> nodeDependency.getDependency().getSelfDependency());
+        return nodeDependencies.size();
     }
 
 
@@ -66,7 +75,7 @@ public class ClassificationHelper {
         this.g = new DirectedPseudograph<String, NodeDependencyEdge>(NodeDependencyEdge.class);
     }
 
-    public void checkForCycles(Graph<String, NodeDependencyEdge> g, FileEditor[] editors, Project project) throws Exception {
+    /*public void checkForCycles(Graph<String, NodeDependencyEdge> g, FileEditor[] editors, Project project) throws Exception {
         ArrayList<Editor> myEditors = this.FileEditorToEditor(editors);
         ArrayList<String> vertices = new ArrayList<>();
         Vector<NodeDependency> nodeDependencies = new Vector<>();
@@ -111,6 +120,60 @@ public class ClassificationHelper {
         this.handleDependencySequences(stronglyConnectedSubgraphs.size(), treeMap, project);
         //dependeySequences.clear();
         treeMap.clear();
+    }*/
+
+    public TreeMap<Integer, TreeMap<String, Vector<NodeDependency>>> checkForCyclicDependencies(Graph<String, NodeDependencyEdge> g) throws Exception {
+        int cycleNumber = 1;
+        ArrayList<String> vertices = new ArrayList<>();
+        TreeMap<Integer, TreeMap<String, Vector<NodeDependency>>> dependency = new TreeMap<>();
+
+        // Checking for cycles in the dependencies
+
+        // computes all the strongly connected components of the directed graph
+        StrongConnectivityAlgorithm<String, NodeDependencyEdge> scAlg = new KosarajuStrongConnectivityInspector<>(g);
+        List<Graph<String, NodeDependencyEdge>> stronglyConnectedSubgraphs = scAlg.getStronglyConnectedComponents();
+        for (Graph<String, NodeDependencyEdge> stronglyConnectedSubgraph : stronglyConnectedSubgraphs) {
+            if (stronglyConnectedSubgraph.vertexSet().size() > 1) {
+                vertices.clear();
+                TreeMap<String, Vector<NodeDependency>> treeMap = new TreeMap<>();
+                vertices.addAll(stronglyConnectedSubgraph.vertexSet());
+                for (String vertex : vertices) {
+                    Vector<NodeDependency> nodeDependencies = new Vector<>();
+                    for (String vertex2 : vertices) {
+                        Set<NodeDependencyEdge> npEdges = stronglyConnectedSubgraph.getAllEdges(vertex, vertex2);
+                        if (npEdges != null && !npEdges.isEmpty()) {
+                            for (NodeDependencyEdge edge : npEdges) {
+                                nodeDependencies.add(edge.getNodeDependency());
+                            }
+                        }
+                    }
+
+                    treeMap.put(vertex, nodeDependencies);
+                }
+                dependency.put(cycleNumber, treeMap);
+                cycleNumber++;
+            }
+
+        }
+        return dependency;
+    }
+
+    public void highlightDependenciesTextRanges(TreeMap<Integer, TreeMap<String, Vector<NodeDependency>>> dependencies, Project project) {
+        FileEditor[] editors = FileEditorManager.getInstance(project).getAllEditors();
+        ArrayList<Editor> myEditors = this.FileEditorToEditor(editors);
+        if (!dependencies.isEmpty()) {
+            for (Integer i : dependencies.keySet()) {
+                TreeMap<String, Vector<NodeDependency>> treeMap = dependencies.get(i);
+                if (!treeMap.isEmpty()) {
+                    for (String vertex : treeMap.keySet()) {
+                        Editor edt = this.getEditor(myEditors, vertex, project);
+                        if (edt != null) {
+                            highlightTextRange(edt, treeMap.get(vertex));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     //converts FileEditor instances to Editor instances
@@ -133,6 +196,7 @@ public class ClassificationHelper {
             myHighlighters.add(highlighter);
         }
     }
+
 
     private String beautifyOutput(NodeDependency nodeDependency) {
         return "Type of Dependency: " + nodeDependency.getDependency().getType() + "\n" + "Dependent on Class: " + nodeDependency.getDependency().getDependentOnClass() + "\n" + "Qualified Name: " + nodeDependency.getDependency().getFullyQualifiedName();
@@ -201,9 +265,9 @@ public class ClassificationHelper {
     }
 
     //show the dependency sequence and dependency count in a notification
-    private void handleDependencySequences(int totalCircles, TreeMap<String, String> treeMap, Project project) {
+    /*private void handleDependencySequences(int totalCircles, TreeMap<String, String> treeMap, Project project) {
         if (!treeMap.isEmpty()) {
-            StringBuilder sb = new StringBuilder("Total cyclic dependencies: " + totalCircles).append("\n").append("Current path with " + getRangeHighlighterCount() + " dependencies:" + "\n")
+            StringBuilder sb = new StringBuilder("Total cycles found: " + totalCircles).append("\n").append("Current path with " + getRangeHighlighterCount() + " dependencies:" + "\n")
                     .append(treeMap.firstKey()).append(" -> ").append(treeMap.firstEntry().getValue());
             getCircle(treeMap, treeMap.firstEntry().getValue(), sb, treeMap.firstKey());
 
@@ -212,6 +276,36 @@ public class ClassificationHelper {
             myNotifierClass.notify(project, getRangeHighlighterCount() + " cyclic dependencies found!");
         }
 
+    }*/
+
+    public void handleDependencySequenceNotifications(TreeMap<Integer, TreeMap<String, Vector<NodeDependency>>> dependencies, Project project) {
+        if (!dependencies.isEmpty()) {
+            int total = dependencies.keySet().size();
+            StringBuilder sb = new StringBuilder("Total cycles found: " + total).append("\n");
+            sb.append("---------------------------------------------------------").append("\n");
+            for (Integer i : dependencies.keySet()) {
+                TreeMap<String, Vector<NodeDependency>> treeMap = dependencies.get(i);
+                if (!treeMap.isEmpty()) {
+                    int currentCount = 0;
+                    TreeMap<String, String> myTreeMap = new TreeMap<>();
+                    for (String vertex : treeMap.keySet()) {
+                        if (!treeMap.get(vertex).isEmpty()) {
+                            for (NodeDependency nodeDependency : treeMap.get(vertex)) {
+                                myTreeMap.put(vertex, nodeDependency.getDependency().getDependentOnClass());
+                            }
+                        }
+                        currentCount = currentCount + treeMap.get(vertex).size();
+                    }
+                    sb.append("Current path with ").append(currentCount).append(" dependencies:").append("\n");
+                    sb.append(myTreeMap.firstKey()).append(" -> ").append(myTreeMap.firstEntry().getValue());
+                    getCircle(myTreeMap, myTreeMap.firstEntry().getValue(), sb, myTreeMap.firstKey());
+                    sb.append("\n").append("---------------------------------------------------------").append("\n");
+                }
+            }
+            myNotifierClass.notify(project, "<html>" + sb.toString().replaceAll("\n", "<br/>") + "</html>");
+        } else {
+            myNotifierClass.notify(project, "No dependencies found!");
+        }
     }
 
     public Vector<RangeHighlighter> getMyHighlighters() {
@@ -225,5 +319,78 @@ public class ClassificationHelper {
             getCircle(treeMap, next, stringBuilder, firstElement);
         }
     }
+
+    //collects all Java files of a projects except for test files
+    public ResultHelper collectJavaFiles(Project project) {
+        HashMap<String, String> psiJavaFiles = new HashMap<>();
+        HashMap<String, String> psiInnerJavaFiles = new HashMap<>();
+        ResultHelper myHelper = new ResultHelper(psiJavaFiles, psiInnerJavaFiles);
+        Collection<VirtualFile> projectJavaFiles = FileTypeIndex.getFiles(JavaFileType.INSTANCE, GlobalSearchScope.projectScope(project));
+        if (!projectJavaFiles.isEmpty()) {
+            for (VirtualFile virtualFile : projectJavaFiles) {
+                if (virtualFile != null) {
+                    PsiJavaFile psiJavaFile = (PsiJavaFile) PsiManager.getInstance(project).findFile(virtualFile);
+                    if (psiJavaFile != null && !psiJavaFile.getContainingDirectory().toString().contains("src" + "\\" + "test")) {
+                        PsiClass[] classes = psiJavaFile.getClasses();
+                        String[] name = psiJavaFile.getName().split("[.]");
+                        if (psiJavaFile.getPackageName().isEmpty()) {
+                            psiJavaFiles.put(name[0], psiJavaFile.getText());
+                        } else {
+                            psiJavaFiles.put(psiJavaFile.getPackageName() + "." + name[0], psiJavaFile.getText());
+                        }
+                        sourceCode.add(psiJavaFile.getName());
+                        /*if (classes.length > 0) {
+                            for (PsiClass psiClass : classes) {
+                                psiJavaFiles.put(psiClass.getName(), psiClass.getText());
+                                sourceCode.add(psiClass.getName());
+                                PsiClass[] psiInnerClasses = psiClass.getInnerClasses();
+                                if (psiInnerClasses.length > 0) {
+                                    for (PsiClass psiInnerClass : psiInnerClasses) {
+                                        psiInnerJavaFiles.put(psiInnerClass.getName(), psiInnerClass.getText());
+                                    }
+                                }
+                            }
+                        }*/
+                    }
+                }
+            }
+        }
+        return myHelper;
+    }
+
+    //builds the graph using the java files and dependencies
+    public void buildGraphUsingMap(ResultHelper myHelper) {
+
+        HashMap<String, String> psiJavaFiles = myHelper.getPsiClasses();
+        HashMap<String, String> psiInnerJavaFiles = myHelper.getPsiInnerClasses();
+        if (!psiJavaFiles.isEmpty()) {
+            for (String psiClass : psiJavaFiles.keySet()) {
+                try {
+
+                    //Add graph vertices if there are dependencies
+                    if (this.getDepCount(psiJavaFiles.get(psiClass)) != 0) {
+                        this.getGraph().addVertex(psiClass);
+                        for (NodeDependency nodeDependency : this.getNodeDependency(psiJavaFiles.get(psiClass))) {
+                            if (!nodeDependency.getDependency().getDependentOnClass().contains("java.") && !nodeDependency.getDependency().getDependentOnClass().startsWith(".") && !nodeDependency.getDependency().getSelfDependency() && psiJavaFiles.containsKey(nodeDependency.getDependency().getDependentOnClass())) {
+                                if (!this.getGraph().containsVertex(nodeDependency.getDependency().getDependentOnClass())) {
+                                    this.getGraph().addVertex(nodeDependency.getDependency().getDependentOnClass());
+                                }
+                                this.getGraph().addEdge(psiClass, nodeDependency.getDependency().getDependentOnClass(), new NodeDependencyEdge(nodeDependency));
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+
+    }
+
+    public ArrayList<String> getSourceCode() {
+        return sourceCode;
+    }
+
 
 }

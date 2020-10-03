@@ -1,58 +1,53 @@
-import com.intellij.openapi.editor.Document;
-import com.intellij.openapi.editor.markup.RangeHighlighter;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
-import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.OpenFileDescriptor;
+import at.aau.softwaredynamics.dependency.NodeDependency;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.wm.ToolWindowManager;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBList;
+import com.intellij.ui.components.JBScrollPane;
 
 import javax.swing.*;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.TreeMap;
 import java.util.Vector;
 
 public class DependenciesGUI {
-    private final JPanel panel = new JPanel();
-    private final JBList<RangeHighlighter> myList;
+    private final JPanel mainPanel = new JPanel();
+    private final ArrayList<JBList<Dependency>> lists = new ArrayList<>();
+    private JBList<Dependency> myList;
 
-    public DependenciesGUI(Project project) {
-        Vector<RangeHighlighter> myHighLighters = ClassificationHelper.classificationHelperInstance.getMyHighlighters();
-        JBLabel label = new JBLabel("Dependencies: ");
-        myList = new JBList<>(myHighLighters);
-        myList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        myList.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) { //double click detected
-                    RangeHighlighter highlighter = myList.getSelectedValue();
-                    Document document = highlighter.getDocument();
-                    VirtualFile file = FileDocumentManager.getInstance().getFile(document);
-                    if (file != null) {
-                        FileEditor fileEditor = FileEditorManager.getInstance(project).getSelectedEditor(file);
-                        if (fileEditor == null) {
-                            ToolWindowManager.getInstance(project).unregisterToolWindow("Cyclic Dependency Detection");
-                            Messages.showInfoMessage(project, "An editor was closed. Please rerun Plugin or try committing again!", "Information");
-                        } else {
-                            FileEditorManager.getInstance(project).navigateToTextEditor(new OpenFileDescriptor(project, file, highlighter.getStartOffset()), true);
-                        }
-                    }
-                }
+    public DependenciesGUI(Project project, TreeMap<Integer, TreeMap<String, Vector<NodeDependency>>> treeMap) {
+        JBLabel labelTxt = new JBLabel("Dependencies: ");
+        JBLabel totalCycles = new JBLabel("Total cycles " + treeMap.keySet().size());
+        mainPanel.add(labelTxt);
+        mainPanel.add(totalCycles);
+        for (Integer integer : treeMap.keySet()) {
+            TreeMap<String, Vector<NodeDependency>> myTreeMap = treeMap.get(integer);
+            Vector<Dependency> cycleDependencies = new Vector<>();
+            for (String vertex : myTreeMap.keySet()) {
+                cycleDependencies.add(new Dependency(vertex, myTreeMap.get(vertex)));
             }
-        });
-        myList.setCellRenderer(new ListRenderer());
-        panel.add(label);
-        panel.add(myList);
-        panel.setOpaque(true);
-        panel.setBackground(JBColor.white);
+            myList = new JBList<>(cycleDependencies);
+            myList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            myList.setCellRenderer(new ListRenderer());
+            myList.addMouseListener(new JListAdapter(project, myList));
+            lists.add(myList);
+        }
+        int count = 1;
+        for (JBList<Dependency> list : lists) {
+            JPanel panel = new JPanel();
+            JBScrollPane jbScrollPane = new JBScrollPane(list);
+            JBLabel labelDep = new JBLabel("Cycle " + count);
+            panel.add(labelDep);
+            panel.add(jbScrollPane);
+            panel.setOpaque(true);
+            panel.setBackground(JBColor.white);
+            count++;
+            mainPanel.add(panel);
+        }
+
     }
 
     public JPanel getPanel() {
-        return panel;
+        return mainPanel;
     }
 }
