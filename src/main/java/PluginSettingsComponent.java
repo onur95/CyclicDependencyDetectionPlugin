@@ -1,9 +1,9 @@
-import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.FormBuilder;
 import com.sun.istack.NotNull;
 
 import javax.swing.*;
+import java.awt.*;
 
 /**
  * Supports creating and managing a JPanel for the Settings Dialog.
@@ -44,12 +44,12 @@ public class PluginSettingsComponent {
         myCyclesLength.setValue(newLength);
     }
 
-    public JBColor getHighlighterColor() {
-        return (JBColor) myHighlighterColor.getColor();
+    public int getHighlighterColor() {
+        return myHighlighterColor.getColor().getRGB();
     }
 
-    public void setHighlighterColor(@NotNull JBColor newColor) {
-        myHighlighterColor.setColor(newColor);
+    public void setHighlighterColor(@NotNull Color newColor) {
+        myHighlighterColor.setColor(newColor.getRGB());
     }
 
 }

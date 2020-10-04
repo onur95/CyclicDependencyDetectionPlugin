@@ -12,6 +12,7 @@ import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBList;
 
+import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.Collection;
@@ -19,6 +20,7 @@ import java.util.Collection;
 public class JListAdapter extends MouseAdapter {
     private final Project project;
     private final JBList<Dependency> myList;
+    private final PluginSettingsState settingsState = PluginSettingsState.getInstance();
 
     public JListAdapter(Project project, JBList<Dependency> myList) {
         this.project = project;
@@ -50,8 +52,8 @@ public class JListAdapter extends MouseAdapter {
                                 Document document = textEditor.getEditor().getDocument();
                                 for (NodeDependency nodeDependency : dependency.getDependency()) {
                                     int startOffsetOfLine = document.getLineStartOffset(nodeDependency.getLineNumbers().getStartLine() - 1);
-                                    RangeHighlighter highlighter = textEditor.getEditor().getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), HighlighterLayer.WARNING, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.MAGENTA, EffectType.ROUNDED_BOX, 13), HighlighterTargetArea.EXACT_RANGE);
-                                    highlighter.setErrorStripeMarkColor(JBColor.MAGENTA);
+                                    RangeHighlighter highlighter = textEditor.getEditor().getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), HighlighterLayer.WARNING, new TextAttributes(JBColor.black, JBColor.WHITE, new JBColor(new Color(settingsState.highlighterColor), new Color(settingsState.highlighterColor)), EffectType.ROUNDED_BOX, 13), HighlighterTargetArea.EXACT_RANGE);
+                                    highlighter.setErrorStripeMarkColor(new JBColor(new Color(settingsState.highlighterColor), new Color(settingsState.highlighterColor)));
                                     highlighter.setErrorStripeTooltip(dependency.getDependency().toString());
                                 }
                                 FileEditorManager.getInstance(project).navigateToTextEditor(new OpenFileDescriptor(project, file, 0), true);

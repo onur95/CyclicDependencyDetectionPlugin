@@ -18,7 +18,7 @@ import org.jetbrains.annotations.Nullable;
 )
 public class PluginSettingsState implements PersistentStateComponent<PluginSettingsState> {
 
-    public JBColor highlighterColor = (JBColor) JBColor.MAGENTA;
+    public int highlighterColor = JBColor.MAGENTA.getRGB();
     public int cyclesLength = 5;
 
     public static PluginSettingsState getInstance() {

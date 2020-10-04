@@ -20,6 +20,7 @@
         <checkinHandlerFactory implementation="MyPluginCheckinHandlerFactory"/>
         <applicationConfigurable parentId="tools" id="PluginConfigurationClass" displayName="CDD Plugin Settings"
                                  instance="PluginConfigurationClass"/>
+        <applicationService serviceImplementation="PluginSettingsState"/>
     </extensions>
 
     <actions>

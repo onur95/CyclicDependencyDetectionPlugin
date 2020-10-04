@@ -25,7 +25,10 @@ import org.jgrapht.alg.connectivity.KosarajuStrongConnectivityInspector;
 import org.jgrapht.alg.interfaces.StrongConnectivityAlgorithm;
 import org.jgrapht.graph.DirectedPseudograph;
 
+import java.awt.*;
+import java.util.List;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ClassificationHelper {
 
@@ -34,6 +37,7 @@ public class ClassificationHelper {
     private final MyNotifierClass myNotifierClass = new MyNotifierClass();
     private final Vector<RangeHighlighter> myHighlighters = new Vector<>();
     public static ClassificationHelper classificationHelperInstance = new ClassificationHelper();
+    private final PluginSettingsState settingsState = PluginSettingsState.getInstance();
 
     private final ArrayList<String> sourceCode = new ArrayList<>();
 
@@ -126,24 +130,33 @@ public class ClassificationHelper {
         int cycleNumber = 1;
         ArrayList<String> vertices = new ArrayList<>();
         TreeMap<Integer, TreeMap<String, Vector<NodeDependency>>> dependency = new TreeMap<>();
-
+        int totalCycles = settingsState.cyclesLength;
+        ArrayList<Graph<String, NodeDependencyEdge>> totalLengthCycles = new ArrayList<>();
         // Checking for cycles in the dependencies
 
         // computes all the strongly connected components of the directed graph
         StrongConnectivityAlgorithm<String, NodeDependencyEdge> scAlg = new KosarajuStrongConnectivityInspector<>(g);
         List<Graph<String, NodeDependencyEdge>> stronglyConnectedSubgraphs = scAlg.getStronglyConnectedComponents();
-        for (Graph<String, NodeDependencyEdge> stronglyConnectedSubgraph : stronglyConnectedSubgraphs) {
-            if (stronglyConnectedSubgraph.vertexSet().size() > 1) {
-                vertices.clear();
-                TreeMap<String, Vector<NodeDependency>> treeMap = new TreeMap<>();
-                vertices.addAll(stronglyConnectedSubgraph.vertexSet());
-                for (String vertex : vertices) {
-                    Vector<NodeDependency> nodeDependencies = new Vector<>();
-                    for (String vertex2 : vertices) {
-                        Set<NodeDependencyEdge> npEdges = stronglyConnectedSubgraph.getAllEdges(vertex, vertex2);
-                        if (npEdges != null && !npEdges.isEmpty()) {
-                            for (NodeDependencyEdge edge : npEdges) {
-                                nodeDependencies.add(edge.getNodeDependency());
+        List<Graph<String, NodeDependencyEdge>> subgraphsWithMoreThanOneVertexSet = stronglyConnectedSubgraphs.stream().filter(subgraph -> subgraph.vertexSet().size() > 1).collect(Collectors.toList());
+        if (totalCycles > subgraphsWithMoreThanOneVertexSet.size()) {
+            totalLengthCycles.addAll(subgraphsWithMoreThanOneVertexSet);
+        } else {
+            for (int i = 0; i < totalCycles; i++) {
+                totalLengthCycles.add(subgraphsWithMoreThanOneVertexSet.get(i));
+            }
+        }
+
+        for (Graph<String, NodeDependencyEdge> stronglyConnectedSubgraph : totalLengthCycles) {
+            vertices.clear();
+            TreeMap<String, Vector<NodeDependency>> treeMap = new TreeMap<>();
+            vertices.addAll(stronglyConnectedSubgraph.vertexSet());
+            for (String vertex : vertices) {
+                Vector<NodeDependency> nodeDependencies = new Vector<>();
+                for (String vertex2 : vertices) {
+                    Set<NodeDependencyEdge> npEdges = stronglyConnectedSubgraph.getAllEdges(vertex, vertex2);
+                    if (npEdges != null && !npEdges.isEmpty()) {
+                        for (NodeDependencyEdge edge : npEdges) {
+                            nodeDependencies.add(edge.getNodeDependency());
                             }
                         }
                     }
@@ -152,7 +165,7 @@ public class ClassificationHelper {
                 }
                 dependency.put(cycleNumber, treeMap);
                 cycleNumber++;
-            }
+
 
         }
         return dependency;
@@ -190,8 +203,8 @@ public class ClassificationHelper {
         Document document = editor.getDocument();
         for (NodeDependency nodeDependency : nodeDependencies) {
             int startOffsetOfLine = document.getLineStartOffset(nodeDependency.getLineNumbers().getStartLine() - 1);
-            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), HighlighterLayer.WARNING, new TextAttributes(JBColor.black, JBColor.WHITE, JBColor.MAGENTA, EffectType.ROUNDED_BOX, 13), HighlighterTargetArea.EXACT_RANGE);
-            highlighter.setErrorStripeMarkColor(JBColor.MAGENTA);
+            RangeHighlighter highlighter = editor.getMarkupModel().addRangeHighlighter(startOffsetOfLine + nodeDependency.getLineNumbers().getStartOffset(), startOffsetOfLine + nodeDependency.getLineNumbers().getEndOffset(), HighlighterLayer.WARNING, new TextAttributes(JBColor.black, JBColor.WHITE, new JBColor(new Color(settingsState.highlighterColor), new Color(settingsState.highlighterColor)), EffectType.ROUNDED_BOX, 13), HighlighterTargetArea.EXACT_RANGE);
+            highlighter.setErrorStripeMarkColor(new JBColor(new Color(settingsState.highlighterColor), new Color(settingsState.highlighterColor)));
             highlighter.setErrorStripeTooltip(beautifyOutput(nodeDependency));
             myHighlighters.add(highlighter);
         }
