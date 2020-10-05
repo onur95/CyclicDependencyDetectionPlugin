@@ -3,6 +3,7 @@ import com.intellij.util.ui.FormBuilder;
 import com.sun.istack.NotNull;
 
 import javax.swing.*;
+import javax.swing.colorchooser.AbstractColorChooserPanel;
 import java.awt.*;
 
 /**
@@ -20,6 +21,12 @@ public class PluginSettingsComponent {
         myCyclesLength.setMinorTickSpacing(1);
         myCyclesLength.setPaintTicks(true);
         myCyclesLength.setPaintLabels(true);
+        AbstractColorChooserPanel[] colorChooserPanels = myHighlighterColor.getChooserPanels();
+        for (AbstractColorChooserPanel colorChooserPanel : colorChooserPanels) {
+            if (!colorChooserPanel.getDisplayName().equals("Swatches")) {
+                myHighlighterColor.removeChooserPanel(colorChooserPanel);
+            }
+        }
         myMainPanel = FormBuilder.createFormBuilder()
                 .addLabeledComponent(new JBLabel("Please choose max. cycle length: "), myCyclesLength, 1, false)
                 .addComponent(myHighlighterColor, 1)
