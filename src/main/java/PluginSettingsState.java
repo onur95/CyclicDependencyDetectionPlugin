@@ -20,6 +20,7 @@ public class PluginSettingsState implements PersistentStateComponent<PluginSetti
 
     public int highlighterColor = JBColor.MAGENTA.getRGB();
     public int cyclesLength = 5;
+    public int totalCyclesLength = 5;
 
     public static PluginSettingsState getInstance() {
         return ServiceManager.getService(PluginSettingsState.class);

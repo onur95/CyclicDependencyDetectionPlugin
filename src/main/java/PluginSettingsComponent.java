@@ -12,12 +12,18 @@ import java.awt.*;
 public class PluginSettingsComponent {
     private final JPanel myMainPanel;
     private final JColorChooser myHighlighterColor = new JColorChooser();
-    private final JSlider myCyclesLength = new JSlider(JSlider.HORIZONTAL, 1, 15, 1);
+    private final JSlider totalCyclesLength = new JSlider(JSlider.HORIZONTAL, 1, 15, 1);
+    private final JSlider myCyclesLength = new JSlider(JSlider.HORIZONTAL, 2, 6, 2);
 
 
     public PluginSettingsComponent() {
+        totalCyclesLength.setValue(5);
+        totalCyclesLength.setMajorTickSpacing(5);
+        totalCyclesLength.setMinorTickSpacing(1);
+        totalCyclesLength.setPaintTicks(true);
+        totalCyclesLength.setPaintLabels(true);
         myCyclesLength.setValue(5);
-        myCyclesLength.setMajorTickSpacing(5);
+        myCyclesLength.setMajorTickSpacing(2);
         myCyclesLength.setMinorTickSpacing(1);
         myCyclesLength.setPaintTicks(true);
         myCyclesLength.setPaintLabels(true);
@@ -29,6 +35,7 @@ public class PluginSettingsComponent {
         }
         myMainPanel = FormBuilder.createFormBuilder()
                 .addLabeledComponent(new JBLabel("Please choose max. cycle length: "), myCyclesLength, 1, false)
+                .addLabeledComponent(new JBLabel("Please choose total cycle count: "), totalCyclesLength, 1, false)
                 .addComponent(myHighlighterColor, 1)
                 .addComponentFillVertically(new JPanel(), 0)
                 .getPanel();
@@ -49,6 +56,15 @@ public class PluginSettingsComponent {
 
     public void setCyclesLength(@NotNull int newLength) {
         myCyclesLength.setValue(newLength);
+    }
+
+    @NotNull
+    public int getTotalCyclesCount() {
+        return totalCyclesLength.getValue();
+    }
+
+    public void setTotalCyclesLength(@NotNull int newTotalCount) {
+        totalCyclesLength.setValue(newTotalCount);
     }
 
     public int getHighlighterColor() {

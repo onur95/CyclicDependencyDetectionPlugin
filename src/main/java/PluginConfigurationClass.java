@@ -40,6 +40,7 @@ public class PluginConfigurationClass implements Configurable {
         PluginSettingsState settings = PluginSettingsState.getInstance();
         boolean modified = mySettingsComponent.getCyclesLength() != settings.cyclesLength;
         modified |= mySettingsComponent.getHighlighterColor() != settings.highlighterColor;
+        modified |= mySettingsComponent.getTotalCyclesCount() != settings.totalCyclesLength;
         return modified;
     }
 
@@ -47,6 +48,7 @@ public class PluginConfigurationClass implements Configurable {
     public void apply() throws ConfigurationException {
         PluginSettingsState settings = PluginSettingsState.getInstance();
         settings.cyclesLength = mySettingsComponent.getCyclesLength();
+        settings.totalCyclesLength = mySettingsComponent.getTotalCyclesCount();
         settings.highlighterColor = mySettingsComponent.getHighlighterColor();
     }
 
@@ -54,6 +56,7 @@ public class PluginConfigurationClass implements Configurable {
     public void reset() {
         PluginSettingsState settings = PluginSettingsState.getInstance();
         mySettingsComponent.setCyclesLength(settings.cyclesLength);
+        mySettingsComponent.setTotalCyclesLength(settings.totalCyclesLength);
         mySettingsComponent.setHighlighterColor(new JBColor(new Color(settings.highlighterColor), new Color(settings.highlighterColor)));
     }
 

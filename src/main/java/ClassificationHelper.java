@@ -130,7 +130,7 @@ public class ClassificationHelper {
         int cycleNumber = 1;
         ArrayList<String> vertices = new ArrayList<>();
         TreeMap<Integer, TreeMap<String, Vector<NodeDependency>>> dependency = new TreeMap<>();
-        int totalCycles = settingsState.cyclesLength;
+        int totalCycles = settingsState.totalCyclesLength;
         ArrayList<Graph<String, NodeDependencyEdge>> totalLengthCycles = new ArrayList<>();
         // Checking for cycles in the dependencies
 
@@ -157,14 +157,16 @@ public class ClassificationHelper {
                     if (npEdges != null && !npEdges.isEmpty()) {
                         for (NodeDependencyEdge edge : npEdges) {
                             nodeDependencies.add(edge.getNodeDependency());
-                            }
                         }
                     }
-
-                    treeMap.put(vertex, nodeDependencies);
                 }
+
+                treeMap.put(vertex, nodeDependencies);
+            }
+            if (settingsState.cyclesLength > treeMap.size()) {
                 dependency.put(cycleNumber, treeMap);
-                cycleNumber++;
+            }
+            cycleNumber++;
 
 
         }
