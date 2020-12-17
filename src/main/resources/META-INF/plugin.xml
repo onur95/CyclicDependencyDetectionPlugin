@@ -13,7 +13,19 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->>
+        <!--  <editorFactoryDocumentListener implementation="CustomDocumentListener"/> -->
+        <!-- <fileDocumentManagerListener implementation="MyDocumentManagerListener"/> -->
     </extensions>
+
+    <applicationListeners>
+        <listener class="VfsChangeListener" topic="com.intellij.openapi.editor.event.BulkAwareDocumentListener$Simple"/>
+    </applicationListeners>
+
+    <applicationListeners>
+        <listener class="MyDocumentManagerListener"
+                  topic="com.intellij.openapi.fileEditor.FileDocumentManagerListener"/>
+    </applicationListeners>
+
 
     <actions>
 

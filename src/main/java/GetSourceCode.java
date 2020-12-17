@@ -1,7 +1,7 @@
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.editor.actionSystem.TypedAction;
 import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiManager;
 import org.jetbrains.annotations.NotNull;
 
 public class GetSourceCode extends AnAction {
@@ -11,8 +11,14 @@ public class GetSourceCode extends AnAction {
      * On instantiation, the static block of code in GetSourceCode gets evaluated.
      * */
     static {
-        final TypedAction typedAction = TypedAction.getInstance();
-        typedAction.setupRawHandler(new TypedHandler(typedAction.getRawHandler()));
+        /*final TypedAction typedAction = TypedAction.getInstance();
+        typedAction.setupRawHandler(new TypedHandler(typedAction.getRawHandler()));*/
+        PsiHelper psiHelper = PsiHelper.psiHelperInstance;
+        if (psiHelper.getActiveProject() != null) {
+            PsiManager.getInstance(psiHelper.getActiveProject()).addPsiTreeChangeListener(new MyPsiTreeChangeAdapter());
+        }
+        //ApplicationManager.getApplication().getMessageBus().connect().subscribe(AppTopics.FILE_DOCUMENT_SYNC, new MyDocumentManagerListener());
+        //EditorFactory.getInstance().getEventMulticaster().addDocumentListener(new VfsChangeListener(),psiHelper.getActiveProject());
     }
 
     @Override
@@ -27,4 +33,5 @@ public class GetSourceCode extends AnAction {
     public void actionPerformed(@NotNull AnActionEvent e) {
         // Using the event, implement an action. For example, create and show a dialog.
     }
+
 }
